@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DrumPilot</string>
+    <string name="title_activity_main">DrumPilot</string>
+    <string name="package_name">com.drumpilot.app</string>
+    <string name="custom_url_scheme">com.drumpilot.app</string>
+</resources>
