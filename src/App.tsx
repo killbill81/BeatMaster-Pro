@@ -8,8 +8,9 @@ import { MetronomeController } from './components/MetronomeController';
 import { SceneModeView } from './components/SceneModeView';
 import { SpotifyService } from './services/SpotifyService';
 import { AuthView } from './components/AuthView';
-import { auth, isFirebaseConfigured } from './services/FirebaseService';
+import { auth, isFirebaseConfigured, firestore } from './services/FirebaseService';
 import { User, onAuthStateChanged } from 'firebase/auth';
+import { onSnapshot, collection } from 'firebase/firestore';
 
 // Initialisation unique de notre moteur de métronome
 const metronomeEngine = new MetronomeEngine();
@@ -73,6 +74,31 @@ const App: React.FC = () => {
     
     initApp();
   }, []);
+
+  // Synchroniser allSongs (accès rapide en-tête) en temps réel avec Firestore si connecté
+  useEffect(() => {
+    let unsubscribeSongs: (() => void) | null = null;
+
+    if (firebaseUser && isFirebaseConfigured && firestore) {
+      const userId = firebaseUser.uid;
+      const songsCol = collection(firestore, 'users', userId, 'songs');
+      unsubscribeSongs = onSnapshot(songsCol, (snapshot) => {
+        const cloudSongs = snapshot.docs.map(docSnap => ({
+          ...docSnap.data(),
+          id: docSnap.id
+        })) as any[];
+        setAllSongs(cloudSongs);
+      }, (error) => {
+        console.error("Erreur d'abonnement en-tête Firestore :", error);
+      });
+    } else {
+      setAllSongs([]);
+    }
+
+    return () => {
+      if (unsubscribeSongs) unsubscribeSongs();
+    };
+  }, [firebaseUser]);
 
   // Mettre à jour la liste globale des morceaux quand la BD change
   const handleRefreshSongs = async () => {

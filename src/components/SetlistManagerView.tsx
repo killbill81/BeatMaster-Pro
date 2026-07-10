@@ -70,7 +70,8 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
         unsubSetlists();
       };
     } else {
-      loadData();
+      setSetlists([]);
+      setSongs([]);
     }
   }, [refreshTrigger, firebaseUser]);
 

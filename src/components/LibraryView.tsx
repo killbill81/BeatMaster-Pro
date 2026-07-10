@@ -77,7 +77,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
       });
       return () => unsubscribe();
     } else {
-      loadSongs();
+      setSongs([]);
+      setAllTags([]);
     }
   }, [refreshTrigger, firebaseUser]);
 
