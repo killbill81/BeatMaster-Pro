@@ -383,7 +383,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectSong, currentP
                     {song.key && <span className="text-[9px] text-zinc-500 block font-medium uppercase mt-0.5">{song.key}</span>}
                   </div>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     {song.spotifyUrl && (
                       <a
                         href={song.spotifyUrl}
