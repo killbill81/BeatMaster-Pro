@@ -237,16 +237,9 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
       
       {/* BARRE HAUTE - Contrôles et Navigation globale */}
       <header className="p-4 border-b border-zinc-900 flex justify-between items-center bg-black/80 backdrop-blur-md z-10">
-        <div className="flex items-center gap-3.5">
-          <div className="text-3xl md:text-4xl font-black tracking-tighter shrink-0 select-none">
-            <span className="text-emerald-400">{currentIndex + 1}</span>
-            <span className="text-zinc-700 mx-1 text-2xl md:text-3xl">/</span>
-            <span className="text-zinc-500 text-2xl md:text-3xl">{validSongIds.length}</span>
-          </div>
-          <div className="border-l border-zinc-800/80 pl-3">
-            <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-black block">Concert : {setlistTitle}</span>
-            <span className="text-[9px] text-emerald-500/80 uppercase tracking-wider font-extrabold block mt-0.5">Morceau Actuel</span>
-          </div>
+        <div>
+          <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-black block">Concert en cours</span>
+          <span className="text-xs text-zinc-400 font-bold block mt-0.5">{setlistTitle}</span>
         </div>
 
         {/* Options à bascule rapide */}
@@ -294,6 +287,9 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
           
           {/* Info Chanson */}
           <div className="text-center">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-widest mb-4">
+              Morceau {currentIndex + 1} / {validSongIds.length}
+            </span>
             <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white line-clamp-1">{currentSong.title}</h1>
             <p className="text-lg md:text-2xl text-zinc-400 font-semibold mt-1.5">{currentSong.artist}</p>
           </div>
