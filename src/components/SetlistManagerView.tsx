@@ -127,10 +127,14 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
           return song ? { title: song.title, artist: song.artist } : null;
         }).filter(Boolean);
 
+        const dateObj = (typeof setlistData.dateCreated === 'string' || (setlistData.dateCreated as any) instanceof String)
+          ? new Date(setlistData.dateCreated)
+          : setlistData.dateCreated;
+
         const setlistToSave = {
           ...setlistData,
           songDetails,
-          dateCreated: setlistData.dateCreated.toISOString()
+          dateCreated: dateObj.toISOString()
         };
 
         if (editingSetlist.id) {
@@ -148,8 +152,9 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
       }
       setIsEditing(false);
       setEditingSetlist(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erreur lors de la sauvegarde de la setlist :", err);
+      alert("Erreur lors de la sauvegarde de la setlist : " + err.message);
     }
   };
 

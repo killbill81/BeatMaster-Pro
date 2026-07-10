@@ -220,9 +220,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     try {
       if (firebaseUser && firestore) {
         const userId = firebaseUser.uid;
+        const dateObj = (typeof songData.dateAdded === 'string' || (songData.dateAdded as any) instanceof String)
+          ? new Date(songData.dateAdded)
+          : songData.dateAdded;
+
         const songToSave = {
           ...songData,
-          dateAdded: songData.dateAdded.toISOString() // Formater en chaîne ISO pour Firestore
+          dateAdded: dateObj.toISOString() // Formater en chaîne ISO pour Firestore
         };
 
         if (editingSong.id) {
@@ -240,8 +244,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
       }
       setIsEditing(false);
       setEditingSong(null);
-    } catch (err) {
-      console.error("Erreur lors de la sauvegarde du morceau", err);
+    } catch (err: any) {
+      console.error("Erreur lors de la sauvegarde du morceau :", err);
+      alert("Erreur lors de la sauvegarde du morceau : " + err.message);
     }
   };
 
