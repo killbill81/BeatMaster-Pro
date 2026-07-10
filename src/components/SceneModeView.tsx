@@ -259,16 +259,16 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
       </header>
 
       {/* ZONE CENTRALE AVEC FLÈCHES LATÉRALES ET CONTENU */}
-      <div className="flex-1 flex flex-row items-center justify-between relative px-2 md:px-4 overflow-hidden">
+      <div className="flex-1 flex flex-row items-center justify-between relative px-0 overflow-hidden">
         
         {/* Bouton Précédent Géant à gauche */}
         <button
           onClick={handlePrev}
           disabled={currentIndex === 0}
-          className="h-32 w-14 md:w-16 bg-zinc-900/30 border border-zinc-800/40 hover:bg-zinc-800/70 hover:border-zinc-700 disabled:opacity-5 disabled:cursor-not-allowed rounded-2xl flex items-center justify-center transition-all cursor-pointer shrink-0 z-20 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 active:scale-95"
+          className="h-full w-14 md:w-20 bg-zinc-950/20 hover:bg-zinc-900/50 border-r border-zinc-900/40 hover:border-zinc-800 disabled:opacity-0 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer shrink-0 z-20 focus:outline-none active:bg-emerald-500/10"
           title="Précédent"
         >
-          <ChevronLeft size={36} className="text-zinc-300" />
+          <ChevronLeft size={36} className="text-zinc-350" />
         </button>
 
         {/* CONTENU PRINCIPAL - Gros caractères */}
@@ -361,10 +361,10 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
         <button
           onClick={handleNext}
           disabled={currentIndex === songIds.length - 1}
-          className="h-32 w-14 md:w-16 bg-zinc-900/30 border border-zinc-800/40 hover:bg-zinc-800/70 hover:border-zinc-700 disabled:opacity-5 disabled:cursor-not-allowed rounded-2xl flex items-center justify-center transition-all cursor-pointer shrink-0 z-20 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 active:scale-95"
+          className="h-full w-14 md:w-20 bg-zinc-950/20 hover:bg-zinc-900/50 border-l border-zinc-900/40 hover:border-zinc-800 disabled:opacity-0 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer shrink-0 z-20 focus:outline-none active:bg-emerald-500/10"
           title="Suivant"
         >
-          <ChevronRight size={36} className="text-zinc-300" />
+          <ChevronRight size={36} className="text-zinc-350" />
         </button>
 
       </div>
