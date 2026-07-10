@@ -37,9 +37,11 @@ if (isFirebaseConfigured) {
   try {
     if (getApps().length === 0) {
       app = initializeApp(firebaseConfig);
-      auth = getAuth(app);
-      firestore = getFirestore(app);
+    } else {
+      app = getApps()[0];
     }
+    auth = getAuth(app);
+    firestore = getFirestore(app);
   } catch (error) {
     console.error("Erreur d'initialisation Firebase :", error);
   }

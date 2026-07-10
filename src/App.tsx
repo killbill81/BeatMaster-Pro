@@ -10,7 +10,7 @@ import { SpotifyService } from './services/SpotifyService';
 import { AuthView } from './components/AuthView';
 import { auth, isFirebaseConfigured, firestore } from './services/FirebaseService';
 import { User, onAuthStateChanged } from 'firebase/auth';
-import { onSnapshot, collection } from 'firebase/firestore';
+import { onSnapshot, collection, getDocs } from 'firebase/firestore';
 
 // Initialisation unique de notre moteur de métronome
 const metronomeEngine = new MetronomeEngine();
@@ -102,8 +102,23 @@ const App: React.FC = () => {
 
   // Mettre à jour la liste globale des morceaux quand la BD change
   const handleRefreshSongs = async () => {
-    const songs = await db.songs.toArray();
-    setAllSongs(songs);
+    if (firebaseUser && isFirebaseConfigured && firestore) {
+      try {
+        const userId = firebaseUser.uid;
+        const songsCol = collection(firestore, 'users', userId, 'songs');
+        const snapshot = await getDocs(songsCol);
+        const cloudSongs = snapshot.docs.map(docSnap => ({
+          ...docSnap.data(),
+          id: docSnap.id
+        })) as any[];
+        setAllSongs(cloudSongs);
+      } catch (err) {
+        console.error("Erreur lors du rechargement des morceaux depuis Firestore :", err);
+      }
+    } else {
+      const songs = await db.songs.toArray();
+      setAllSongs(songs);
+    }
   };
 
   // Lancer le mode scène pour un seul morceau
@@ -294,7 +309,7 @@ const App: React.FC = () => {
             <div className="flex flex-wrap gap-2.5 items-center w-full md:w-auto">
               <select
                 onChange={(e) => {
-                  const song = allSongs.find(s => s.id === Number(e.target.value));
+                  const song = allSongs.find(s => String(s.id) === String(e.target.value));
                   if (song) handleSelectSongForScene(song);
                 }}
                 defaultValue=""
@@ -302,7 +317,7 @@ const App: React.FC = () => {
               >
                 <option value="" disabled>Sélectionner un morceau...</option>
                 {allSongs.map(s => (
-                  <option key={s.id} value={s.id}>{s.title} ({s.bpm} BPM)</option>
+                  <option key={String(s.id)} value={String(s.id)}>{s.title} ({s.bpm} BPM)</option>
                 ))}
               </select>
             </div>
