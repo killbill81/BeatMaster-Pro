@@ -265,7 +265,7 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
         <button
           onClick={handlePrev}
           disabled={currentIndex === 0}
-          className="h-full w-14 md:w-20 bg-zinc-950/20 hover:bg-zinc-900/50 border-r border-zinc-900/40 hover:border-zinc-800 disabled:opacity-0 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer shrink-0 z-20 focus:outline-none active:bg-emerald-500/10"
+          className="h-full w-20 md:w-28 bg-zinc-950/20 hover:bg-zinc-900/50 border-r border-zinc-900/40 hover:border-zinc-800 disabled:opacity-0 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer shrink-0 z-20 focus:outline-none active:bg-emerald-500/10"
           title="Précédent"
         >
           <ChevronLeft size={36} className="text-zinc-350" />
@@ -361,7 +361,7 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
         <button
           onClick={handleNext}
           disabled={currentIndex === songIds.length - 1}
-          className="h-full w-14 md:w-20 bg-zinc-950/20 hover:bg-zinc-900/50 border-l border-zinc-900/40 hover:border-zinc-800 disabled:opacity-0 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer shrink-0 z-20 focus:outline-none active:bg-emerald-500/10"
+          className="h-full w-20 md:w-28 bg-zinc-950/20 hover:bg-zinc-900/50 border-l border-zinc-900/40 hover:border-zinc-800 disabled:opacity-0 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer shrink-0 z-20 focus:outline-none active:bg-emerald-500/10"
           title="Suivant"
         >
           <ChevronRight size={36} className="text-zinc-350" />
