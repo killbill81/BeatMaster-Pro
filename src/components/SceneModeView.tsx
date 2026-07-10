@@ -48,7 +48,7 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
   useEffect(() => {
     if (songIds.length > 0 && currentIndex >= 0 && currentIndex < songIds.length) {
       const songId = songIds[currentIndex];
-      const song = songsList.find(s => s.id === songId);
+      const song = songsList.find(s => String(s.id) === String(songId));
       if (song) {
         setCurrentSong(song);
         // Configurer le métronome
