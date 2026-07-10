@@ -258,121 +258,127 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
         </div>
       </header>
 
-      {/* CONTENU PRINCIPAL - Gros caractères */}
-      <main className="flex-1 flex flex-col justify-around px-6 py-4 overflow-y-auto">
+      {/* ZONE CENTRALE AVEC FLÈCHES LATÉRALES ET CONTENU */}
+      <div className="flex-1 flex flex-row items-center justify-between relative px-2 md:px-4 overflow-hidden">
         
-        {/* Info Chanson */}
-        <div className="text-center">
-          <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white line-clamp-1">{currentSong.title}</h1>
-          <p className="text-lg md:text-2xl text-zinc-400 font-semibold mt-1.5">{currentSong.artist}</p>
-        </div>
+        {/* Bouton Précédent Géant à gauche */}
+        <button
+          onClick={handlePrev}
+          disabled={currentIndex === 0}
+          className="h-32 w-14 md:w-16 bg-zinc-900/30 border border-zinc-800/40 hover:bg-zinc-800/70 hover:border-zinc-700 disabled:opacity-5 disabled:cursor-not-allowed rounded-2xl flex items-center justify-center transition-all cursor-pointer shrink-0 z-20 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 active:scale-95"
+          title="Précédent"
+        >
+          <ChevronLeft size={36} className="text-zinc-300" />
+        </button>
 
-        {/* SECTION METRONOME & TEMPO GÉANT */}
-        <div className="flex flex-col items-center justify-center my-4">
-          {countdownActive ? (
-            <div className="flex flex-col items-center animate-pulse">
-              <span className="text-9xl font-black text-rose-500">{countdownBeats}</span>
-              <p className="text-sm text-rose-400 uppercase tracking-widest font-black mt-2">Compte à rebours</p>
-            </div>
-          ) : (
-            <div className="flex items-baseline justify-center gap-4">
-              <span className="text-9xl md:text-[14rem] font-black text-emerald-400 leading-none tracking-tighter">
-                {currentSong.bpm}
-              </span>
-              <div className="flex flex-col">
-                <span className="text-xl md:text-3xl font-black text-zinc-500 border border-zinc-800 bg-zinc-950/80 px-3 py-1 rounded-xl">
-                  {currentSong.timeSignature}
+        {/* CONTENU PRINCIPAL - Gros caractères */}
+        <main className="flex-1 flex flex-col justify-around py-4 overflow-y-auto h-full px-2 md:px-6">
+          
+          {/* Info Chanson */}
+          <div className="text-center">
+            <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white line-clamp-1">{currentSong.title}</h1>
+            <p className="text-lg md:text-2xl text-zinc-400 font-semibold mt-1.5">{currentSong.artist}</p>
+          </div>
+
+          {/* SECTION METRONOME & TEMPO GÉANT */}
+          <div className="flex flex-col items-center justify-center my-4">
+            {countdownActive ? (
+              <div className="flex flex-col items-center animate-pulse">
+                <span className="text-9xl font-black text-rose-500">{countdownBeats}</span>
+                <p className="text-sm text-rose-400 uppercase tracking-widest font-black mt-2">Compte à rebours</p>
+              </div>
+            ) : (
+              <div className="flex items-baseline justify-center gap-4">
+                <span className="text-9xl md:text-[14rem] font-black text-emerald-400 leading-none tracking-tighter">
+                  {currentSong.bpm}
                 </span>
-                {currentSong.key && (
-                  <span className="text-xs md:text-sm font-bold text-zinc-400 uppercase tracking-widest mt-1 text-center bg-zinc-900 px-2 py-0.5 rounded">
-                    {currentSong.key}
+                <div className="flex flex-col">
+                  <span className="text-xl md:text-3xl font-black text-zinc-500 border border-zinc-800 bg-zinc-950/80 px-3 py-1 rounded-xl">
+                    {currentSong.timeSignature}
                   </span>
-                )}
+                  {currentSong.key && (
+                    <span className="text-xs md:text-sm font-bold text-zinc-400 uppercase tracking-widest mt-1 text-center bg-zinc-900 px-2 py-0.5 rounded">
+                      {currentSong.key}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Indicateur de battement visuel (Gros points de temps) */}
+            <div className="flex gap-4 mt-6">
+              {Array.from({ length: parseInt(currentSong.timeSignature.split('/')[0]) || 4 }).map((_, idx) => (
+                <div 
+                  key={idx}
+                  className={`w-5 h-5 rounded-full transition-all duration-100 ${
+                    currentBeat === idx + 1 && isPlaying && !countdownActive
+                      ? (idx === 0 ? 'bg-emerald-400 scale-130 shadow-lg shadow-emerald-500/50' : 'bg-white scale-120')
+                      : 'bg-zinc-900 border border-zinc-800'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* STRUCTURE DU MORCEAU (Frise de briques) */}
+          {structureBlocks.length > 0 && (
+            <div className="w-full max-w-4xl mx-auto flex flex-col gap-2 bg-zinc-950/40 p-3 rounded-2xl border border-zinc-900/60">
+              <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Structure du morceau</span>
+              <div className="flex flex-wrap gap-2">
+                {structureBlocks.map((block, idx) => (
+                  <div 
+                    key={idx}
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 shadow-sm ${block.colorClass}`}
+                  >
+                    <span>{block.name}</span>
+                    {block.measures && (
+                      <span className="px-1.5 py-0.5 rounded bg-black/30 border border-white/5 text-[10px] font-black">
+                        {block.measures}m
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Indicateur de battement visuel (Gros points de temps) */}
-          <div className="flex gap-4 mt-6">
-            {Array.from({ length: parseInt(currentSong.timeSignature.split('/')[0]) || 4 }).map((_, idx) => (
-              <div 
-                key={idx}
-                className={`w-5 h-5 rounded-full transition-all duration-100 ${
-                  currentBeat === idx + 1 && isPlaying && !countdownActive
-                    ? (idx === 0 ? 'bg-emerald-400 scale-130 shadow-lg shadow-emerald-500/50' : 'bg-white scale-120')
-                    : 'bg-zinc-900 border border-zinc-800'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* STRUCTURE DU MORCEAU (Frise de briques) */}
-        {structureBlocks.length > 0 && (
-          <div className="w-full max-w-4xl mx-auto flex flex-col gap-2 bg-zinc-950/40 p-3 rounded-2xl border border-zinc-900/60">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Structure du morceau</span>
-            <div className="flex flex-wrap gap-2">
-              {structureBlocks.map((block, idx) => (
-                <div 
-                  key={idx}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 shadow-sm ${block.colorClass}`}
-                >
-                  <span>{block.name}</span>
-                  {block.measures && (
-                    <span className="px-1.5 py-0.5 rounded bg-black/30 border border-white/5 text-[10px] font-black">
-                      {block.measures}m
-                    </span>
-                  )}
-                </div>
-              ))}
+          {/* NOTES ET COMMENTAIRES CRITIQUES */}
+          {currentSong.comments && (
+            <div className="w-full max-w-4xl mx-auto p-4 bg-zinc-950/80 border border-zinc-900 rounded-2xl flex items-start gap-3">
+              <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
+              <div>
+                <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold block mb-1">Notes Batteristes</span>
+                <p className="text-zinc-200 text-sm md:text-base font-semibold leading-relaxed">
+                  {currentSong.comments}
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* NOTES ET COMMENTAIRES CRITIQUES */}
-        {currentSong.comments && (
-          <div className="w-full max-w-4xl mx-auto p-4 bg-zinc-950/80 border border-zinc-900 rounded-2xl flex items-start gap-3">
-            <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
-            <div>
-              <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold block mb-1">Notes Batteristes</span>
-              <p className="text-zinc-200 text-sm md:text-base font-semibold leading-relaxed">
-                {currentSong.comments}
-              </p>
-            </div>
-          </div>
-        )}
+        </main>
 
-      </main>
+        {/* Bouton Suivant Géant à droite */}
+        <button
+          onClick={handleNext}
+          disabled={currentIndex === songIds.length - 1}
+          className="h-32 w-14 md:w-16 bg-zinc-900/30 border border-zinc-800/40 hover:bg-zinc-800/70 hover:border-zinc-700 disabled:opacity-5 disabled:cursor-not-allowed rounded-2xl flex items-center justify-center transition-all cursor-pointer shrink-0 z-20 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 active:scale-95"
+          title="Suivant"
+        >
+          <ChevronRight size={36} className="text-zinc-300" />
+        </button>
+
+      </div>
 
       {/* BARRE BASSE - Contrôles de scène */}
-      <footer className="p-6 border-t border-zinc-900 bg-zinc-950/90 backdrop-blur-md flex flex-col md:flex-row items-center justify-between gap-4 z-10">
+      <footer className="p-5 border-t border-zinc-900 bg-zinc-950/90 backdrop-blur-md flex items-center justify-center gap-4 z-10">
         
-        {/* Navigation morceaux */}
-        <div className="flex gap-3 w-full md:w-auto">
-          <button 
-            onClick={handlePrev}
-            disabled={currentIndex === 0}
-            className="flex-1 md:flex-initial px-4 py-3 bg-zinc-900 border border-zinc-800 disabled:opacity-30 disabled:hover:bg-zinc-900 font-bold rounded-xl flex items-center justify-center gap-1.5 hover:bg-zinc-800 transition-colors cursor-pointer"
-          >
-            <ChevronLeft size={20} /> Précédent
-          </button>
-          
-          <button 
-            onClick={handleNext}
-            disabled={currentIndex === songIds.length - 1}
-            className="flex-1 md:flex-initial px-4 py-3 bg-zinc-900 border border-zinc-800 disabled:opacity-30 disabled:hover:bg-zinc-900 font-bold rounded-xl flex items-center justify-center gap-1.5 hover:bg-zinc-800 transition-colors cursor-pointer"
-          >
-            Suivant <ChevronRight size={20} />
-          </button>
-        </div>
-
         {/* Contrôles du tempo */}
-        <div className="flex gap-3 w-full md:w-auto flex-1 justify-end">
+        <div className="flex gap-4 w-full justify-center max-w-lg">
           
           {/* Lancement avec Compte à rebours */}
           <button 
             onClick={() => handleTogglePlay(true)}
-            className={`flex-1 md:flex-initial px-6 py-3.5 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-2 border transition-all ${
+            className={`flex-1 px-6 py-3.5 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-2 border transition-all cursor-pointer ${
               isPlaying || countdownActive
                 ? 'bg-rose-950/20 border-rose-900/40 text-rose-400 hover:bg-rose-500/20'
                 : 'bg-zinc-900 border-zinc-800 hover:border-emerald-500/40 text-zinc-300 hover:text-white'
@@ -385,7 +391,7 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
           {/* Lancement immédiat */}
           <button 
             onClick={() => handleTogglePlay(false)}
-            className={`flex-1 md:flex-initial px-8 py-3.5 rounded-xl font-extrabold uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
+            className={`flex-1 px-8 py-3.5 rounded-xl font-extrabold uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer ${
               isPlaying && !countdownActive
                 ? 'bg-rose-600 hover:bg-rose-500 text-zinc-100 shadow-md shadow-rose-950/20'
                 : 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-md shadow-emerald-950/20'
