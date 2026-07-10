@@ -24,8 +24,9 @@ const App: React.FC = () => {
   
   // États pour le Mode Scène
   const [liveModeActive, setLiveModeActive] = useState<boolean>(false);
-  const [liveSongIds, setLiveSongIds] = useState<number[]>([]);
+  const [liveSongIds, setLiveSongIds] = useState<any[]>([]);
   const [liveTitle, setLiveTitle] = useState<string>('');
+  const [liveSongsList, setLiveSongsList] = useState<Song[]>([]);
 
   // États Spotify globaux
   const [spotifyConnected, setSpotifyConnected] = useState<boolean>(SpotifyService.isAuthenticated());
@@ -126,14 +127,16 @@ const App: React.FC = () => {
     if (song.id) {
       setLiveSongIds([song.id]);
       setLiveTitle(song.title);
+      setLiveSongsList([song]);
       setLiveModeActive(true);
     }
   };
 
   // Lancer le mode scène pour une setlist complète
-  const handleLoadSetlistInScene = (songIds: number[], setlistTitle: string) => {
+  const handleLoadSetlistInScene = (songIds: any[], setlistTitle: string, songsList: Song[]) => {
     setLiveSongIds(songIds);
     setLiveTitle(setlistTitle);
+    setLiveSongsList(songsList);
     setLiveModeActive(true);
   };
 
@@ -166,7 +169,7 @@ const App: React.FC = () => {
       <SceneModeView
         engine={metronomeEngine}
         songIds={liveSongIds}
-        songsList={allSongs}
+        songsList={liveSongsList}
         setlistTitle={liveTitle}
         onExit={() => {
           setLiveModeActive(false);

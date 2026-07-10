@@ -6,7 +6,7 @@ import { deleteDoc, doc, collection, query, where, getDocs, onSnapshot, addDoc, 
 import { type User } from 'firebase/auth';
 
 interface SetlistManagerViewProps {
-  onLoadSetlistInScene: (songIds: any[], setlistTitle: string) => void;
+  onLoadSetlistInScene: (songIds: any[], setlistTitle: string, songsList: Song[]) => void;
   refreshTrigger?: number;
   firebaseUser?: User | null;
 }
@@ -207,7 +207,7 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
       alert("Cette setlist ne contient aucun morceau !");
       return;
     }
-    onLoadSetlistInScene(setlist.songIds, setlist.title);
+    onLoadSetlistInScene(setlist.songIds, setlist.title, songs);
   };
 
   return (
