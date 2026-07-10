@@ -3,15 +3,22 @@ import { Search, Star, Music, Plus, Trash2, Edit2, Play, ExternalLink, Hash, X, 
 import { db, Song } from '../db/database';
 import { SpotifyService, SpotifyTrack } from '../services/SpotifyService';
 import { auth, firestore } from '../services/FirebaseService';
-import { deleteDoc, doc, collection, query, where, getDocs, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, collection, query, where, getDocs, setDoc, onSnapshot, addDoc } from 'firebase/firestore';
+import { type User } from 'firebase/auth';
 
 interface LibraryViewProps {
   onSelectSong: (song: Song) => void;
   currentPlayingSongId?: number;
   refreshTrigger?: number;
+  firebaseUser?: User | null;
 }
 
-export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectSong, currentPlayingSongId, refreshTrigger }) => {
+export const LibraryView: React.FC<LibraryViewProps> = ({ 
+  onSelectSong, 
+  currentPlayingSongId, 
+  refreshTrigger,
+  firebaseUser
+}) => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -50,8 +57,29 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectSong, currentP
   };
 
   useEffect(() => {
-    loadSongs();
-  }, [refreshTrigger]);
+    if (firebaseUser && firestore) {
+      const userId = firebaseUser.uid;
+      const songsCol = collection(firestore, 'users', userId, 'songs');
+      const unsubscribe = onSnapshot(songsCol, (snapshot) => {
+        const cloudSongs = snapshot.docs.map(docSnap => ({
+          ...docSnap.data(),
+          id: docSnap.id
+        })) as any[];
+        setSongs(cloudSongs);
+
+        const tags = new Set<string>();
+        cloudSongs.forEach(song => {
+          if (song.tags) song.tags.forEach((t: string) => tags.add(t));
+        });
+        setAllTags(Array.from(tags));
+      }, (error) => {
+        console.error("Erreur d'abonnement en temps réel Firestore :", error);
+      });
+      return () => unsubscribe();
+    } else {
+      loadSongs();
+    }
+  }, [refreshTrigger, firebaseUser]);
 
   // Vérifier périodiquement l'état d'authentification Spotify
   useEffect(() => {
@@ -93,31 +121,20 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectSong, currentP
 
 
   // Gérer la suppression
-  const deleteSong = async (e: React.MouseEvent, id: number) => {
+  const deleteSong = async (e: React.MouseEvent, id: any) => {
     e.stopPropagation();
     if (window.confirm("Voulez-vous vraiment supprimer ce morceau de la bibliothèque ?")) {
-      const songToDelete = await db.songs.get(id);
-      
-      if (auth?.currentUser && firestore && songToDelete) {
-        try {
-          const userId = auth.currentUser.uid;
-          const songsCol = collection(firestore, 'users', userId, 'songs');
-          const q = query(
-            songsCol,
-            where('title', '==', songToDelete.title),
-            where('artist', '==', songToDelete.artist)
-          );
-          const querySnapshot = await getDocs(q);
-          for (const docSnap of querySnapshot.docs) {
-            await deleteDoc(doc(firestore, 'users', userId, 'songs', docSnap.id));
-          }
-        } catch (err) {
-          console.error("Erreur lors de la suppression sur Firestore :", err);
+      try {
+        if (firebaseUser && firestore) {
+          const userId = firebaseUser.uid;
+          await deleteDoc(doc(firestore, 'users', userId, 'songs', String(id)));
+        } else {
+          await db.songs.delete(Number(id));
+          loadSongs();
         }
+      } catch (err) {
+        console.error("Erreur lors de la suppression du morceau :", err);
       }
-
-      await db.songs.delete(id);
-      loadSongs();
     }
   };
 
@@ -127,31 +144,19 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectSong, currentP
     if (!song.id) return;
     
     const newFavoriteStatus = !song.favorite;
-    const updatedSong = { ...song, favorite: newFavoriteStatus };
 
     try {
-      // 1. Mettre à jour en local dans Dexie
-      await db.songs.put(updatedSong);
-
-      // 2. Mettre à jour sur Firestore si connecté
-      if (auth?.currentUser && firestore) {
-        const userId = auth.currentUser.uid;
-        const songsCol = collection(firestore, 'users', userId, 'songs');
-        const q = query(
-          songsCol,
-          where('title', '==', song.title),
-          where('artist', '==', song.artist)
-        );
-        const querySnapshot = await getDocs(q);
-        for (const docSnap of querySnapshot.docs) {
-          await setDoc(doc(firestore, 'users', userId, 'songs', docSnap.id), {
-            ...docSnap.data(),
-            favorite: newFavoriteStatus
-          });
-        }
+      if (firebaseUser && firestore) {
+        const userId = firebaseUser.uid;
+        await setDoc(doc(firestore, 'users', userId, 'songs', String(song.id)), {
+          ...song,
+          favorite: newFavoriteStatus
+        });
+      } else {
+        const updatedSong = { ...song, favorite: newFavoriteStatus };
+        await db.songs.put(updatedSong as any);
+        loadSongs();
       }
-      
-      loadSongs();
     } catch (err) {
       console.error("Erreur lors de la mise à jour du statut favori :", err);
     }
@@ -212,14 +217,28 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectSong, currentP
     };
 
     try {
-      if (editingSong.id) {
-        await db.songs.put({ ...songData, id: editingSong.id });
+      if (firebaseUser && firestore) {
+        const userId = firebaseUser.uid;
+        const songToSave = {
+          ...songData,
+          dateAdded: songData.dateAdded.toISOString() // Formater en chaîne ISO pour Firestore
+        };
+
+        if (editingSong.id) {
+          await setDoc(doc(firestore, 'users', userId, 'songs', String(editingSong.id)), songToSave);
+        } else {
+          await addDoc(collection(firestore, 'users', userId, 'songs'), songToSave);
+        }
       } else {
-        await db.songs.add(songData);
+        if (editingSong.id) {
+          await db.songs.put({ ...songData, id: Number(editingSong.id) });
+        } else {
+          await db.songs.add(songData);
+        }
+        loadSongs();
       }
       setIsEditing(false);
       setEditingSong(null);
-      loadSongs();
     } catch (err) {
       console.error("Erreur lors de la sauvegarde du morceau", err);
     }

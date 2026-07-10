@@ -2,14 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { Play, Plus, Trash2, Edit2, ChevronUp, ChevronDown, ListMusic, Star, Trash, Check, X } from 'lucide-react';
 import { db, Song, Setlist } from '../db/database';
 import { auth, firestore } from '../services/FirebaseService';
-import { deleteDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
+import { deleteDoc, doc, collection, query, where, getDocs, onSnapshot, addDoc, setDoc } from 'firebase/firestore';
+import { type User } from 'firebase/auth';
 
 interface SetlistManagerViewProps {
-  onLoadSetlistInScene: (songIds: number[], setlistTitle: string) => void;
+  onLoadSetlistInScene: (songIds: any[], setlistTitle: string) => void;
   refreshTrigger?: number;
+  firebaseUser?: User | null;
 }
 
-export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({ onLoadSetlistInScene, refreshTrigger }) => {
+export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({ 
+  onLoadSetlistInScene, 
+  refreshTrigger,
+  firebaseUser
+}) => {
   const [setlists, setSetlists] = useState<Setlist[]>([]);
   const [songs, setSongs] = useState<Song[]>([]);
   
@@ -30,8 +36,43 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({ onLoadSe
   };
 
   useEffect(() => {
-    loadData();
-  }, [refreshTrigger]);
+    if (firebaseUser && firestore) {
+      const userId = firebaseUser.uid;
+      
+      // Écouter les morceaux en temps réel (nécessaire pour résoudre les détails de setlist)
+      const songsCol = collection(firestore, 'users', userId, 'songs');
+      const unsubSongs = onSnapshot(songsCol, (snapshot) => {
+        const cloudSongs = snapshot.docs.map(docSnap => ({
+          ...docSnap.data(),
+          id: docSnap.id
+        })) as any[];
+        setSongs(cloudSongs);
+      });
+
+      // Écouter les setlists en temps réel
+      const setlistsCol = collection(firestore, 'users', userId, 'setlists');
+      const unsubSetlists = onSnapshot(setlistsCol, (snapshot) => {
+        const cloudSetlists = snapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          // Si Firestore stocke songDetails (pour le portage) mais pas songIds, résolvons-les dynamiquement si besoin.
+          // En direct Firestore, on va stocker les strings IDs des documents.
+          return {
+            ...data,
+            id: docSnap.id,
+            songIds: data.songIds || []
+          };
+        }) as any[];
+        setSetlists(cloudSetlists);
+      });
+
+      return () => {
+        unsubSongs();
+        unsubSetlists();
+      };
+    } else {
+      loadData();
+    }
+  }, [refreshTrigger, firebaseUser]);
 
   const handleAddNew = () => {
     setEditingSetlist({
@@ -47,26 +88,19 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({ onLoadSe
     setIsEditing(true);
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: any) => {
     if (window.confirm("Voulez-vous vraiment supprimer cette setlist ?")) {
-      const setlistToDelete = await db.setlists.get(id);
-
-      if (auth?.currentUser && firestore && setlistToDelete) {
-        try {
-          const userId = auth.currentUser.uid;
-          const setlistsCol = collection(firestore, 'users', userId, 'setlists');
-          const q = query(setlistsCol, where('title', '==', setlistToDelete.title));
-          const querySnapshot = await getDocs(q);
-          for (const docSnap of querySnapshot.docs) {
-            await deleteDoc(doc(firestore, 'users', userId, 'setlists', docSnap.id));
-          }
-        } catch (err) {
-          console.error("Erreur lors de la suppression de la setlist sur Firestore :", err);
+      try {
+        if (firebaseUser && firestore) {
+          const userId = firebaseUser.uid;
+          await deleteDoc(doc(firestore, 'users', userId, 'setlists', String(id)));
+        } else {
+          await db.setlists.delete(Number(id));
+          loadData();
         }
+      } catch (err) {
+        console.error("Erreur lors de la suppression de la setlist :", err);
       }
-
-      await db.setlists.delete(id);
-      loadData();
     }
   };
 
@@ -85,16 +119,36 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({ onLoadSe
     };
 
     try {
-      if (editingSetlist.id) {
-        await db.setlists.put({ ...setlistData, id: editingSetlist.id });
+      if (firebaseUser && firestore) {
+        const userId = firebaseUser.uid;
+        const songDetails = setlistData.songIds.map(sid => {
+          const song = songs.find(s => s.id === sid);
+          return song ? { title: song.title, artist: song.artist } : null;
+        }).filter(Boolean);
+
+        const setlistToSave = {
+          ...setlistData,
+          songDetails,
+          dateCreated: setlistData.dateCreated.toISOString()
+        };
+
+        if (editingSetlist.id) {
+          await setDoc(doc(firestore, 'users', userId, 'setlists', String(editingSetlist.id)), setlistToSave);
+        } else {
+          await addDoc(collection(firestore, 'users', userId, 'setlists'), setlistToSave);
+        }
       } else {
-        await db.setlists.add(setlistData);
+        if (editingSetlist.id) {
+          await db.setlists.put({ ...setlistData, id: Number(editingSetlist.id) });
+        } else {
+          await db.setlists.add(setlistData);
+        }
+        loadData();
       }
       setIsEditing(false);
       setEditingSetlist(null);
-      loadData();
     } catch (err) {
-      console.error("Erreur lors de la sauvegarde de la setlist", err);
+      console.error("Erreur lors de la sauvegarde de la setlist :", err);
     }
   };
 

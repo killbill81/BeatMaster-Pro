@@ -64,6 +64,9 @@ const App: React.FC = () => {
         onAuthStateChanged(auth, (user) => {
           setFirebaseUser(user);
           setRefreshTrigger(prev => prev + 1);
+          if (user) {
+            setShowAuthModal(false);
+          }
         });
       }
     };
@@ -289,6 +292,7 @@ const App: React.FC = () => {
               }}
               currentPlayingSongId={liveSongIds.length === 1 ? liveSongIds[0] : undefined}
               refreshTrigger={refreshTrigger}
+              firebaseUser={firebaseUser}
             />
           )}
 
@@ -296,6 +300,7 @@ const App: React.FC = () => {
             <SetlistManagerView 
               onLoadSetlistInScene={handleLoadSetlistInScene}
               refreshTrigger={refreshTrigger}
+              firebaseUser={firebaseUser}
             />
           )}
 

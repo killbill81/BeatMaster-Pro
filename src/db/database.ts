@@ -25,7 +25,7 @@ export interface Setlist {
   id?: number;
   title: string;
   description?: string;
-  songIds: number[]; // IDs des morceaux dans l'ordre de passage
+  songIds: any[]; // IDs des morceaux (number ou string)
   dateCreated: Date;
 }
 
