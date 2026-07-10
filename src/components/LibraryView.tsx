@@ -458,17 +458,24 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
                 {/* Métriques BPM et Actions */}
                 <div className="flex items-center gap-4 shrink-0 pl-3">
-                  <div className="text-right">
-                    <span className="text-2xl font-black text-emerald-400">{song.bpm}</span>
-                    <span className="text-[10px] text-zinc-500 block font-semibold">BPM</span>
+                  {/* Colonne BPM fixe */}
+                  <div className="w-14 text-center">
+                    <span className="text-2xl font-black text-emerald-400 block leading-none">{song.bpm}</span>
+                    <span className="text-[9px] text-zinc-500 block font-semibold uppercase tracking-wider mt-1">BPM</span>
                   </div>
 
-                  <div className="text-center bg-zinc-900/60 border border-zinc-800 px-2 py-1.5 rounded-lg min-w-10">
+                  {/* Colonne Boîte Noire Signature fixe */}
+                  <div className="text-center bg-zinc-900/60 border border-zinc-800 px-2 py-1.5 rounded-lg w-24 shrink-0 flex flex-col justify-center min-h-[42px]">
                     <span className="text-xs font-bold text-zinc-300 block">{song.timeSignature}</span>
-                    {song.key && <span className="text-[9px] text-zinc-500 block font-medium uppercase mt-0.5">{song.key}</span>}
+                    {song.key ? (
+                      <span className="text-[8px] text-zinc-500 block font-bold uppercase mt-0.5 truncate" title={song.key}>{song.key}</span>
+                    ) : (
+                      <span className="text-[8px] text-zinc-650 block font-bold uppercase mt-0.5">-</span>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                  {/* Colonne Actions fixe */}
+                  <div className="w-[105px] flex items-center justify-end gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
                     {song.spotifyUrl && (
                       <a
                         href={song.spotifyUrl}
