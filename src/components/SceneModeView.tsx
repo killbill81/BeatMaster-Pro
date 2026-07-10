@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Play, Square, AlertCircle, RefreshCw, Sun, Lightbulb } from 'lucide-react';
 import { Song } from '../db/database';
 import { MetronomeEngine } from '../services/MetronomeEngine';
@@ -44,10 +44,16 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
   // Wake lock ref
   const wakeLockRef = useRef<any>(null);
 
-  // Charger le morceau actuel
+  // Filtrer les songIds orphelins (qui n'existent pas dans songsList)
+  const validSongIds = useMemo(() => {
+    return songIds.filter(songId => 
+      songsList.some(s => String(s.id) === String(songId))
+    );
+  }, [songIds, songsList]);
+
   useEffect(() => {
-    if (songIds.length > 0 && currentIndex >= 0 && currentIndex < songIds.length) {
-      const songId = songIds[currentIndex];
+    if (validSongIds.length > 0 && currentIndex >= 0 && currentIndex < validSongIds.length) {
+      const songId = validSongIds[currentIndex];
       const song = songsList.find(s => String(s.id) === String(songId));
       if (song) {
         setCurrentSong(song);
@@ -63,7 +69,7 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
         engine.setSubdivision('quarter');
       }
     }
-  }, [currentIndex, songIds, songsList, engine]);
+  }, [currentIndex, validSongIds, songsList, engine]);
 
   // Activer le KeepAwake (Empêcher la mise en veille)
   useEffect(() => {
@@ -198,7 +204,7 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
   };
 
   const handleNext = () => {
-    if (currentIndex < songIds.length - 1) {
+    if (currentIndex < validSongIds.length - 1) {
       setCurrentIndex(currentIndex + 1);
     }
   };
@@ -234,7 +240,7 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
         <div>
           <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-black block">Concert : {setlistTitle}</span>
           <span className="text-xs text-emerald-400 font-bold block mt-0.5">
-            Morceau {currentIndex + 1} sur {songIds.length}
+            Morceau {currentIndex + 1} sur {validSongIds.length}
           </span>
         </div>
 
@@ -367,7 +373,7 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
         {/* Bouton Suivant Géant à droite */}
         <button
           onClick={handleNext}
-          disabled={currentIndex === songIds.length - 1}
+          disabled={currentIndex === validSongIds.length - 1}
           className="h-full w-20 md:w-28 bg-zinc-950/20 hover:bg-zinc-900/50 border-l border-zinc-900/40 hover:border-zinc-800 disabled:opacity-0 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer shrink-0 z-20 focus:outline-none active:bg-emerald-500/10"
           title="Suivant"
         >
