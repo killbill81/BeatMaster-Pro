@@ -141,9 +141,16 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
 
   if (!currentSong) {
     return (
-      <div className="bg-black text-white h-screen flex flex-col items-center justify-center">
-        <p className="text-zinc-500">Aucun morceau disponible</p>
-        <button onClick={onExit} className="mt-4 px-4 py-2 bg-zinc-900 border border-zinc-800 rounded">Quitter</button>
+      <div className="bg-black text-white h-screen flex flex-col items-center justify-center p-6 text-center">
+        <p className="text-zinc-400 font-bold">Aucun morceau disponible dans le Mode Live</p>
+        <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-900 text-left text-xs font-mono max-w-lg mt-4 flex flex-col gap-2">
+          <div><strong>Setlist :</strong> {setlistTitle}</div>
+          <div><strong>Index actuel :</strong> {currentIndex}</div>
+          <div><strong>songIds (Concert) :</strong> {JSON.stringify(songIds)}</div>
+          <div><strong>songsList (Bibliothèque reçue) :</strong> {JSON.stringify(songsList.map(s => ({ id: s.id, title: s.title })))}</div>
+          <div><strong>Chanson cherchée (ID) :</strong> {songIds[currentIndex]}</div>
+        </div>
+        <button onClick={onExit} className="mt-6 px-6 py-2.5 bg-emerald-500 text-zinc-950 font-bold rounded-xl cursor-pointer">Quitter le Live</button>
       </div>
     );
   }
