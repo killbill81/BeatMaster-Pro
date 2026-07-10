@@ -27,6 +27,13 @@ const App: React.FC = () => {
   const [liveSongIds, setLiveSongIds] = useState<any[]>([]);
   const [liveTitle, setLiveTitle] = useState<string>('');
   const [liveSongsList, setLiveSongsList] = useState<Song[]>([]);
+  const [liveFlashColor, setLiveFlashColor] = useState<string>(() => {
+    return localStorage.getItem('liveFlashColor') || 'emerald';
+  });
+  const [liveCountdownBeats, setLiveCountdownBeats] = useState<number>(() => {
+    const saved = localStorage.getItem('liveCountdownBeats');
+    return saved ? parseInt(saved, 10) : 4;
+  });
 
   // États Spotify globaux
   const [spotifyConnected, setSpotifyConnected] = useState<boolean>(SpotifyService.isAuthenticated());
@@ -142,6 +149,8 @@ const App: React.FC = () => {
 
   const handleSaveSettings = () => {
     SpotifyService.setClientId(spotifyClientId);
+    localStorage.setItem('liveFlashColor', liveFlashColor);
+    localStorage.setItem('liveCountdownBeats', String(liveCountdownBeats));
     setShowSettingsModal(false);
     alert("Configuration sauvegardée !");
   };
@@ -171,6 +180,8 @@ const App: React.FC = () => {
         songIds={liveSongIds}
         songsList={liveSongsList}
         setlistTitle={liveTitle}
+        defaultFlashColor={liveFlashColor}
+        defaultCountdownBeats={liveCountdownBeats}
         onExit={() => {
           setLiveModeActive(false);
           handleRefreshSongs(); // rafraîchir en cas de changements
@@ -449,6 +460,58 @@ const App: React.FC = () => {
                     </button>
                   </div>
                 )}
+              </div>
+
+              {/* Option de Scène : Couleur du Flash */}
+              <div className="flex flex-col gap-2 border-t border-zinc-900 pt-4">
+                <label className="text-xs text-zinc-400 font-semibold">Couleur du Flash (Mode Live)</label>
+                <div className="flex justify-between gap-1.5">
+                  {[
+                    { id: 'emerald', label: 'Vert', bg: 'bg-emerald-500' },
+                    { id: 'amber', label: 'Orange', bg: 'bg-amber-500' },
+                    { id: 'rose', label: 'Rouge', bg: 'bg-rose-500' },
+                    { id: 'blue', label: 'Bleu', bg: 'bg-blue-500' },
+                    { id: 'white', label: 'Blanc', bg: 'bg-white' },
+                  ].map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setLiveFlashColor(c.id)}
+                      className={`flex-1 py-2 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                        liveFlashColor === c.id 
+                          ? 'bg-zinc-900 border-zinc-700 shadow-inner' 
+                          : 'bg-zinc-950 border-transparent hover:bg-zinc-900/50'
+                      }`}
+                    >
+                      <span className={`w-3.5 h-3.5 rounded-full ${c.bg} shadow`} />
+                      <span className={`text-[9px] font-bold ${liveFlashColor === c.id ? 'text-zinc-200' : 'text-zinc-500'}`}>{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Option de Scène : Décompte */}
+              <div className="flex flex-col gap-2 border-t border-zinc-900 pt-4">
+                <label className="text-xs text-zinc-400 font-semibold">Temps de Décompte (Mode Live)</label>
+                <div className="flex items-center justify-between bg-zinc-950 p-3 rounded-xl border border-zinc-900">
+                  <span className="text-sm font-bold text-zinc-300">{liveCountdownBeats} temps</span>
+                  <div className="flex gap-1.5">
+                    <button 
+                      type="button"
+                      onClick={() => setLiveCountdownBeats(prev => Math.max(1, prev - 1))}
+                      className="w-8 h-8 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white rounded-lg flex items-center justify-center font-bold cursor-pointer select-none active:scale-95 text-sm"
+                    >
+                      -
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setLiveCountdownBeats(prev => Math.min(16, prev + 1))}
+                      className="w-8 h-8 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white rounded-lg flex items-center justify-center font-bold cursor-pointer select-none active:scale-95 text-sm"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 

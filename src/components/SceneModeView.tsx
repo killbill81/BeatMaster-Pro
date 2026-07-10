@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Play, Square, AlertCircle, RefreshCw, Sun, Lightbulb } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, Square, AlertCircle, RefreshCw, Sun, Lightbulb, Settings } from 'lucide-react';
 import { Song } from '../db/database';
 import { MetronomeEngine } from '../services/MetronomeEngine';
 import { KeepAwake } from '@capacitor-community/keep-awake';
@@ -9,6 +9,8 @@ interface SceneModeViewProps {
   songIds: number[]; // Liste des IDs des morceaux de la setlist
   songsList: Song[]; // Tous les morceaux chargés
   setlistTitle?: string;
+  defaultFlashColor?: string;
+  defaultCountdownBeats?: number;
   onExit: () => void;
 }
 
@@ -23,6 +25,8 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
   songIds,
   songsList,
   setlistTitle = "Live Mode",
+  defaultFlashColor = "emerald",
+  defaultCountdownBeats = 4,
   onExit,
 }) => {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
@@ -40,6 +44,11 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
   // Options
   const [visualFlashEnabled, setVisualFlashEnabled] = useState<boolean>(true);
   const [vibrationEnabled, setVibrationEnabled] = useState<boolean>(false);
+  
+  // Personnalisations utilisateur
+  const [flashColor, setFlashColor] = useState<string>(defaultFlashColor); // 'emerald', 'amber', 'rose', 'blue', 'white'
+  const [customCountdownBeats, setCustomCountdownBeats] = useState<number>(defaultCountdownBeats);
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   
   // Wake lock ref
   const wakeLockRef = useRef<any>(null);
@@ -209,6 +218,22 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
     }
   };
 
+  const getFlashBgClass = () => {
+    if (!isFlashActive) return '';
+    if (currentBeat === 1) {
+      switch (flashColor) {
+        case 'amber': return 'bg-amber-950/60';
+        case 'rose': return 'bg-rose-950/60';
+        case 'blue': return 'bg-blue-950/60';
+        case 'white': return 'bg-zinc-100/25';
+        case 'emerald':
+        default:
+          return 'bg-emerald-950/60';
+      }
+    }
+    return 'bg-zinc-900/30';
+  };
+
   const handleTogglePlay = (withCountdown: boolean = false) => {
     if (isPlaying || countdownActive) {
       engine.stop();
@@ -218,9 +243,8 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
     } else {
       if (withCountdown) {
         setCountdownActive(true);
-        // Obtenir le numérateur de la signature pour le compte à rebours
-        const num = parseInt(currentSong.timeSignature.split('/')[0]) || 4;
-        engine.start(true, num);
+        setCountdownBeats(customCountdownBeats);
+        engine.start(true, customCountdownBeats);
       } else {
         engine.start();
       }
@@ -229,11 +253,7 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
   };
 
   return (
-    <div className={`h-screen bg-black text-white flex flex-col justify-between overflow-hidden transition-all duration-75 relative select-none ${
-      isFlashActive 
-        ? (currentBeat === 1 ? 'bg-emerald-950/50' : 'bg-zinc-900/30') 
-        : ''
-    }`}>
+    <div className={`h-screen bg-black text-white flex flex-col justify-between overflow-hidden transition-all duration-75 relative select-none ${getFlashBgClass()}`}>
       
       {/* BARRE HAUTE - Contrôles et Navigation globale */}
       <header className="p-4 border-b border-zinc-900 flex justify-between items-center bg-black/80 backdrop-blur-md z-10">
@@ -261,6 +281,13 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
             <Lightbulb size={14} /> Vibrer
           </button>
           <button 
+            onClick={() => setShowSettingsModal(true)}
+            className="p-2 rounded-lg border border-zinc-800 hover:border-zinc-700 hover:text-zinc-200 text-zinc-400 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+            title="Paramètres de Scène"
+          >
+            <Settings size={14} /> Options
+          </button>
+          <button 
             onClick={() => { engine.stop(); onExit(); }}
             className="px-3.5 py-2 bg-zinc-900 border border-zinc-800 hover:border-rose-900/40 hover:text-rose-400 text-zinc-400 text-xs font-bold rounded-lg cursor-pointer transition-colors"
           >
@@ -285,13 +312,23 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
         {/* CONTENU PRINCIPAL - Gros caractères */}
         <main className="flex-1 flex flex-col justify-around py-4 overflow-y-auto h-full px-2 md:px-6">
           
-          {/* Info Chanson */}
-          <div className="text-center">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-widest mb-4">
-              Morceau {currentIndex + 1} / {validSongIds.length}
-            </span>
-            <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white line-clamp-1">{currentSong.title}</h1>
-            <p className="text-lg md:text-2xl text-zinc-400 font-semibold mt-1.5">{currentSong.artist}</p>
+          {/* Info Chanson (Double Colonne) */}
+          <div className="flex flex-row items-center justify-center gap-6 md:gap-8 max-w-4xl mx-auto w-full px-4">
+            {/* Colonne Gauche : Compteur Géant */}
+            <div className="text-right border-r border-zinc-800/80 pr-6 shrink-0 select-none">
+              <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-black block">Morceau</span>
+              <div className="text-4xl md:text-5xl font-black tracking-tighter mt-1">
+                <span className="text-emerald-400">{currentIndex + 1}</span>
+                <span className="text-zinc-700 mx-1">/</span>
+                <span className="text-zinc-500 text-3xl">{validSongIds.length}</span>
+              </div>
+            </div>
+
+            {/* Colonne Droite : Titre et Groupe */}
+            <div className="text-left min-w-0 flex-1">
+              <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white line-clamp-1">{currentSong.title}</h1>
+              <p className="text-lg md:text-2xl text-zinc-400 font-semibold mt-1.5">{currentSong.artist}</p>
+            </div>
           </div>
 
           {/* SECTION METRONOME & TEMPO GÉANT */}
@@ -425,6 +462,88 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
         </div>
 
       </footer>
+
+      {/* MODALE DE PARAMÈTRES DE SCÈNE */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-950 border border-zinc-900 rounded-3xl p-6 w-full max-w-md shadow-2xl flex flex-col gap-6">
+            
+            {/* Titre */}
+            <div className="flex justify-between items-center pb-4 border-b border-zinc-900">
+              <h3 className="text-lg font-black text-zinc-100 flex items-center gap-2">
+                <Settings className="text-emerald-400" size={20} /> Options de Scène
+              </h3>
+              <button 
+                onClick={() => setShowSettingsModal(false)}
+                className="text-zinc-500 hover:text-zinc-300 text-sm font-bold cursor-pointer"
+              >
+                Fermer
+              </button>
+            </div>
+
+            {/* Couleur du Flash */}
+            <div className="flex flex-col gap-3">
+              <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Couleur du Flash</span>
+              <div className="flex justify-between gap-2.5">
+                {[
+                  { id: 'emerald', label: 'Vert', bg: 'bg-emerald-500', border: 'border-emerald-500/30' },
+                  { id: 'amber', label: 'Orange', bg: 'bg-amber-500', border: 'border-amber-500/30' },
+                  { id: 'rose', label: 'Rouge', bg: 'bg-rose-500', border: 'border-rose-500/30' },
+                  { id: 'blue', label: 'Bleu', bg: 'bg-blue-500', border: 'border-blue-500/30' },
+                  { id: 'white', label: 'Blanc', bg: 'bg-white', border: 'border-zinc-300' },
+                ].map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setFlashColor(c.id)}
+                    className={`flex-1 py-3.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                      flashColor === c.id 
+                        ? 'bg-zinc-900 border-zinc-700 shadow-inner scale-102 ring-1 ring-emerald-500/20' 
+                        : 'bg-zinc-950 border-transparent hover:bg-zinc-900/50'
+                    }`}
+                  >
+                    <span className={`w-4 h-4 rounded-full ${c.bg} shadow`} />
+                    <span className={`text-[10px] font-bold ${flashColor === c.id ? 'text-zinc-200' : 'text-zinc-500'}`}>{c.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Durée du Décompte */}
+            <div className="flex flex-col gap-3">
+              <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Décompte (Temps)</span>
+              <div className="flex items-center justify-between bg-zinc-900/40 border border-zinc-900 rounded-2xl p-4">
+                <div className="flex flex-col">
+                  <span className="text-2xl font-black text-zinc-200">{customCountdownBeats} temps</span>
+                  <span className="text-[10px] text-zinc-500 font-semibold mt-0.5">Nombre de battements avant départ</span>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setCustomCountdownBeats(prev => Math.max(1, prev - 1))}
+                    className="w-10 h-10 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white rounded-xl flex items-center justify-center font-black cursor-pointer select-none active:scale-95"
+                  >
+                    -
+                  </button>
+                  <button 
+                    onClick={() => setCustomCountdownBeats(prev => Math.min(16, prev + 1))}
+                    className="w-10 h-10 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white rounded-xl flex items-center justify-center font-black cursor-pointer select-none active:scale-95"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Validation */}
+            <button
+              onClick={() => setShowSettingsModal(false)}
+              className="mt-2 w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black uppercase tracking-wider rounded-2xl cursor-pointer text-sm shadow-md shadow-emerald-950/20 active:scale-98 transition-all"
+            >
+              Enregistrer les options
+            </button>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );
