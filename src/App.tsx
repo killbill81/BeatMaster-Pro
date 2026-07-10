@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Music, ListMusic, Play, Sliders, Smartphone, Star, Settings, X } from 'lucide-react';
+import { Music, ListMusic, Play, Sliders, Smartphone, Star, Settings, X, Cloud, CloudOff } from 'lucide-react';
 import { db, seedDatabaseIfEmpty, Song } from './db/database';
 import { MetronomeEngine } from './services/MetronomeEngine';
 import { LibraryView } from './components/LibraryView';
@@ -7,6 +7,9 @@ import { SetlistManagerView } from './components/SetlistManagerView';
 import { MetronomeController } from './components/MetronomeController';
 import { SceneModeView } from './components/SceneModeView';
 import { SpotifyService } from './services/SpotifyService';
+import { AuthView } from './components/AuthView';
+import { auth, isFirebaseConfigured } from './services/FirebaseService';
+import { User, onAuthStateChanged } from 'firebase/auth';
 
 // Initialisation unique de notre moteur de métronome
 const metronomeEngine = new MetronomeEngine();
@@ -28,7 +31,11 @@ const App: React.FC = () => {
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [spotifyClientId, setSpotifyClientId] = useState<string>(SpotifyService.getClientId());
 
-  // Initialisation, seed de démonstration et intercepteur OAuth Spotify
+  // États Firebase globaux
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+
+  // Initialisation, seed de démonstration, écoute de session Firebase et callback Spotify
   useEffect(() => {
     const initApp = async () => {
       // 1. Gérer le callback Spotify OAuth PKCE s'il y a un code dans l'URL
@@ -50,6 +57,13 @@ const App: React.FC = () => {
       
       // 3. Mettre à jour la connexion Spotify
       setSpotifyConnected(SpotifyService.isAuthenticated());
+
+      // 4. Écouter la session Firebase
+      if (isFirebaseConfigured && auth) {
+        onAuthStateChanged(auth, (user) => {
+          setFirebaseUser(user);
+        });
+      }
     };
     
     initApp();
@@ -172,11 +186,35 @@ const App: React.FC = () => {
             </button>
           </nav>
 
-          {/* Boutons d'état Spotify / Paramètres */}
+          {/* Boutons d'état Cloud / Spotify / Paramètres */}
           <div className="flex gap-2">
+            
+            {/* BOUTON CLOUD SYNC FIREBASE */}
+            {isFirebaseConfigured ? (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className={`p-2.5 rounded-xl border transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  firebaseUser 
+                    ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400' 
+                    : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+                }`}
+                title={firebaseUser ? "Sauvegarde Cloud Active" : "Se connecter pour sauvegarder"}
+              >
+                <Cloud size={16} />
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-650 hover:text-zinc-500 transition-colors cursor-pointer"
+                title="Firebase non configuré"
+              >
+                <CloudOff size={16} />
+              </button>
+            )}
+
             <button
               onClick={() => setShowSettingsModal(true)}
-              className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-855 transition-colors cursor-pointer"
+              className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors cursor-pointer"
               title="Configuration Paramètres"
             >
               <Settings size={16} />
@@ -189,7 +227,7 @@ const App: React.FC = () => {
                 title="Cliquer pour déconnecter Spotify"
               >
                 <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-                Spotify Connecté
+                Spotify
               </button>
             ) : (
               <button
@@ -197,7 +235,7 @@ const App: React.FC = () => {
                 className="px-3 py-2 bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-zinc-300 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <span className="w-1.5 h-1.5 bg-zinc-700 rounded-full"></span>
-                Spotify Déconnecté
+                Spotify
               </button>
             )}
           </div>
@@ -208,7 +246,7 @@ const App: React.FC = () => {
       {/* CONTENU PRINCIPAL */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 overflow-hidden flex flex-col gap-6">
         
-        {/* Widget Live Rapide (Si des morceaux existent) */}
+        {/* Widget Live Rapide */}
         {activeTab !== 'metronome' && allSongs.length > 0 && (
           <div className="glass-panel rounded-2xl p-4 border border-zinc-900 flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -271,6 +309,25 @@ const App: React.FC = () => {
         </div>
 
       </main>
+
+      {/* --- MODALE D'AUTHENTIFICATION FIREBASE --- */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="relative w-full max-w-md">
+            <button
+              onClick={() => setShowAuthModal(false)}
+              className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-350 z-55 cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+            <AuthView 
+              onSyncComplete={() => {
+                handleRefreshSongs(); // Recharger les morceaux importés du cloud
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* --- MODALE DES PARAMÈTRES GENERAUX & SPOTIFY --- */}
       {showSettingsModal && (
