@@ -34,6 +34,7 @@ const App: React.FC = () => {
   // États Firebase globaux
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
   // Initialisation, seed de démonstration, écoute de session Firebase et callback Spotify
   useEffect(() => {
@@ -62,6 +63,7 @@ const App: React.FC = () => {
       if (isFirebaseConfigured && auth) {
         onAuthStateChanged(auth, (user) => {
           setFirebaseUser(user);
+          setRefreshTrigger(prev => prev + 1);
         });
       }
     };
@@ -286,12 +288,14 @@ const App: React.FC = () => {
                 handleSelectSongForScene(song);
               }}
               currentPlayingSongId={liveSongIds.length === 1 ? liveSongIds[0] : undefined}
+              refreshTrigger={refreshTrigger}
             />
           )}
 
           {activeTab === 'setlists' && (
             <SetlistManagerView 
               onLoadSetlistInScene={handleLoadSetlistInScene}
+              refreshTrigger={refreshTrigger}
             />
           )}
 
@@ -322,7 +326,8 @@ const App: React.FC = () => {
             </button>
             <AuthView 
               onSyncComplete={() => {
-                handleRefreshSongs(); // Recharger les morceaux importés du cloud
+                handleRefreshSongs();
+                setRefreshTrigger(prev => prev + 1);
               }}
             />
           </div>

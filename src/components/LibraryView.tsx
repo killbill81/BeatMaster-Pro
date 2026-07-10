@@ -3,14 +3,15 @@ import { Search, Star, Music, Plus, Trash2, Edit2, Play, ExternalLink, Hash, X, 
 import { db, Song } from '../db/database';
 import { SpotifyService, SpotifyTrack } from '../services/SpotifyService';
 import { auth, firestore } from '../services/FirebaseService';
-import { deleteDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
+import { deleteDoc, doc, collection, query, where, getDocs, setDoc } from 'firebase/firestore';
 
 interface LibraryViewProps {
   onSelectSong: (song: Song) => void;
   currentPlayingSongId?: number;
+  refreshTrigger?: number;
 }
 
-export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectSong, currentPlayingSongId }) => {
+export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectSong, currentPlayingSongId, refreshTrigger }) => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -50,7 +51,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectSong, currentP
 
   useEffect(() => {
     loadSongs();
-  }, []);
+  }, [refreshTrigger]);
 
   // Vérifier périodiquement l'état d'authentification Spotify
   useEffect(() => {
@@ -89,14 +90,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectSong, currentP
     return matchesSearch && matchesTag && matchesFavorite;
   });
 
-  // Gérer le favori direct
-  const toggleFavorite = async (e: React.MouseEvent, song: Song) => {
-    e.stopPropagation();
-    if (song.id) {
-      await db.songs.update(song.id, { favorite: !song.favorite });
-      loadSongs();
-    }
-  };
+
 
   // Gérer la suppression
   const deleteSong = async (e: React.MouseEvent, id: number) => {
@@ -124,6 +118,42 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectSong, currentP
 
       await db.songs.delete(id);
       loadSongs();
+    }
+  };
+
+  // Basculer l'état de favori d'un morceau
+  const toggleFavorite = async (e: React.MouseEvent, song: Song) => {
+    e.stopPropagation();
+    if (!song.id) return;
+    
+    const newFavoriteStatus = !song.favorite;
+    const updatedSong = { ...song, favorite: newFavoriteStatus };
+
+    try {
+      // 1. Mettre à jour en local dans Dexie
+      await db.songs.put(updatedSong);
+
+      // 2. Mettre à jour sur Firestore si connecté
+      if (auth?.currentUser && firestore) {
+        const userId = auth.currentUser.uid;
+        const songsCol = collection(firestore, 'users', userId, 'songs');
+        const q = query(
+          songsCol,
+          where('title', '==', song.title),
+          where('artist', '==', song.artist)
+        );
+        const querySnapshot = await getDocs(q);
+        for (const docSnap of querySnapshot.docs) {
+          await setDoc(doc(firestore, 'users', userId, 'songs', docSnap.id), {
+            ...docSnap.data(),
+            favorite: newFavoriteStatus
+          });
+        }
+      }
+      
+      loadSongs();
+    } catch (err) {
+      console.error("Erreur lors de la mise à jour du statut favori :", err);
     }
   };
 
@@ -374,9 +404,17 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectSong, currentP
                       <h3 className="font-bold text-zinc-100 truncate group-hover:text-emerald-400 transition-colors">
                         {song.title}
                       </h3>
-                      {song.favorite && (
-                        <Star size={12} className="text-amber-400 shrink-0" fill="currentColor" />
-                      )}
+                      <button
+                        onClick={(e) => toggleFavorite(e, song)}
+                        className="p-1 rounded hover:bg-zinc-800/80 transition-colors cursor-pointer shrink-0"
+                        title={song.favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                      >
+                        <Star 
+                          size={12} 
+                          className={song.favorite ? "text-amber-400" : "text-zinc-650 hover:text-amber-400"} 
+                          fill={song.favorite ? "currentColor" : "none"} 
+                        />
+                      </button>
                     </div>
                     <p className="text-xs text-zinc-400 truncate">{song.artist}</p>
                     

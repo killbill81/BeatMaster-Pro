@@ -6,9 +6,10 @@ import { deleteDoc, doc, collection, query, where, getDocs } from 'firebase/fire
 
 interface SetlistManagerViewProps {
   onLoadSetlistInScene: (songIds: number[], setlistTitle: string) => void;
+  refreshTrigger?: number;
 }
 
-export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({ onLoadSetlistInScene }) => {
+export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({ onLoadSetlistInScene, refreshTrigger }) => {
   const [setlists, setSetlists] = useState<Setlist[]>([]);
   const [songs, setSongs] = useState<Song[]>([]);
   
@@ -30,7 +31,7 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({ onLoadSe
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleAddNew = () => {
     setEditingSetlist({
