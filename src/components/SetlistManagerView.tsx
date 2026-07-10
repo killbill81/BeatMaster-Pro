@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Plus, Trash2, Edit2, ChevronUp, ChevronDown, ListMusic, Star, Trash, Check, X } from 'lucide-react';
 import { db, Song, Setlist } from '../db/database';
+import { auth, firestore } from '../services/FirebaseService';
+import { deleteDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
 
 interface SetlistManagerViewProps {
   onLoadSetlistInScene: (songIds: number[], setlistTitle: string) => void;
@@ -46,6 +48,22 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({ onLoadSe
 
   const handleDelete = async (id: number) => {
     if (window.confirm("Voulez-vous vraiment supprimer cette setlist ?")) {
+      const setlistToDelete = await db.setlists.get(id);
+
+      if (auth?.currentUser && firestore && setlistToDelete) {
+        try {
+          const userId = auth.currentUser.uid;
+          const setlistsCol = collection(firestore, 'users', userId, 'setlists');
+          const q = query(setlistsCol, where('title', '==', setlistToDelete.title));
+          const querySnapshot = await getDocs(q);
+          for (const docSnap of querySnapshot.docs) {
+            await deleteDoc(doc(firestore, 'users', userId, 'setlists', docSnap.id));
+          }
+        } catch (err) {
+          console.error("Erreur lors de la suppression de la setlist sur Firestore :", err);
+        }
+      }
+
       await db.setlists.delete(id);
       loadData();
     }

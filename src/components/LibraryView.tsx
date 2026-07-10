@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Search, Star, Music, Plus, Trash2, Edit2, Play, ExternalLink, Hash, X, Check, Eye } from 'lucide-react';
 import { db, Song } from '../db/database';
 import { SpotifyService, SpotifyTrack } from '../services/SpotifyService';
+import { auth, firestore } from '../services/FirebaseService';
+import { deleteDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
 
 interface LibraryViewProps {
   onSelectSong: (song: Song) => void;
@@ -100,6 +102,26 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectSong, currentP
   const deleteSong = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
     if (window.confirm("Voulez-vous vraiment supprimer ce morceau de la bibliothèque ?")) {
+      const songToDelete = await db.songs.get(id);
+      
+      if (auth?.currentUser && firestore && songToDelete) {
+        try {
+          const userId = auth.currentUser.uid;
+          const songsCol = collection(firestore, 'users', userId, 'songs');
+          const q = query(
+            songsCol,
+            where('title', '==', songToDelete.title),
+            where('artist', '==', songToDelete.artist)
+          );
+          const querySnapshot = await getDocs(q);
+          for (const docSnap of querySnapshot.docs) {
+            await deleteDoc(doc(firestore, 'users', userId, 'songs', docSnap.id));
+          }
+        } catch (err) {
+          console.error("Erreur lors de la suppression sur Firestore :", err);
+        }
+      }
+
       await db.songs.delete(id);
       loadSongs();
     }

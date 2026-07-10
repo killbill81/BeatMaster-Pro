@@ -50,7 +50,7 @@ export async function seedDatabaseIfEmpty() {
   if (hasSeeded) return;
 
   const songCount = await db.songs.count();
-  if (songCount === 0) {
+  if (songCount === 0 && initialSongs.length > 0) {
     const songsToSeed: Song[] = initialSongs.map((song: any) => ({
       ...song,
       dateAdded: new Date()
@@ -61,7 +61,7 @@ export async function seedDatabaseIfEmpty() {
     const demoSetlist: Setlist = {
       title: "Répétition Concert d'Été",
       description: "Setlist principale pour les répétitions de juillet 2026",
-      songIds: [1, 4, 5, 2], // Back in Black, Rosanna, Come Together, Master of Puppets
+      songIds: [1, 4, 5, 2],
       dateCreated: new Date()
     };
 
