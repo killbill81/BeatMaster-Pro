@@ -46,6 +46,9 @@ export const db = new DrumPilotDatabase();
 
 // Ajouter des données de démonstration initiales si la base est vide
 export async function seedDatabaseIfEmpty() {
+  const hasSeeded = localStorage.getItem('drumpilot_db_seeded') === 'true';
+  if (hasSeeded) return;
+
   const songCount = await db.songs.count();
   if (songCount === 0) {
     const songsToSeed: Song[] = initialSongs.map((song: any) => ({
@@ -64,4 +67,6 @@ export async function seedDatabaseIfEmpty() {
 
     await db.setlists.add(demoSetlist);
   }
+  
+  localStorage.setItem('drumpilot_db_seeded', 'true');
 }
