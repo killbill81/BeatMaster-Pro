@@ -22,6 +22,7 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
   // États d'édition/création
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editingSetlist, setEditingSetlist] = useState<Partial<Setlist> | null>(null);
+  const [expandedSetlistId, setExpandedSetlistId] = useState<any | null>(null);
   
   // Chargement des données
   const loadData = async () => {
@@ -230,50 +231,95 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
       {!isEditing && (
         <div className="flex flex-col gap-4 overflow-y-auto max-h-[600px] pr-1">
           {setlists.length > 0 ? (
-            setlists.map((setlist) => (
-              <div 
-                key={setlist.id}
-                className="glass-panel rounded-xl p-5 border border-zinc-900 hover:border-zinc-800 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
-              >
-                <div>
-                  <h3 className="text-lg font-bold text-zinc-100">{setlist.title}</h3>
-                  {setlist.description && (
-                    <p className="text-sm text-zinc-400 mt-1 max-w-xl">{setlist.description}</p>
-                  )}
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs bg-zinc-900 border border-zinc-800 text-emerald-400 font-bold px-2 py-0.5 rounded-md">
-                      {setlist.songIds.length} morceau{setlist.songIds.length > 1 ? 'x' : ''}
-                    </span>
-                    <span className="text-[10px] text-zinc-500">
-                      Créée le {new Date(setlist.dateCreated).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
+            setlists.map((setlist) => {
+              const isExpanded = expandedSetlistId === setlist.id;
+              return (
+                <div 
+                  key={setlist.id}
+                  className="glass-panel rounded-xl p-5 border border-zinc-900 hover:border-zinc-850 transition-all flex flex-col gap-4"
+                >
+                  {/* Ligne Supérieure : Titre et Actions */}
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div 
+                      onClick={() => setExpandedSetlistId(isExpanded ? null : setlist.id)}
+                      className="cursor-pointer flex-1 min-w-0"
+                    >
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-zinc-100 hover:text-emerald-400 transition-colors truncate">
+                          {setlist.title}
+                        </h3>
+                        <span className="text-zinc-500 text-xs mt-0.5">
+                          {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </span>
+                      </div>
+                      {setlist.description && (
+                        <p className="text-sm text-zinc-400 mt-1 max-w-xl truncate">{setlist.description}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-xs bg-zinc-900 border border-zinc-800 text-emerald-400 font-bold px-2 py-0.5 rounded-md">
+                          {setlist.songIds.length} morceau{setlist.songIds.length > 1 ? 'x' : ''}
+                        </span>
+                        <span className="text-[10px] text-zinc-500">
+                          Créée le {new Date(setlist.dateCreated).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
 
-                <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-                  <button
-                    onClick={() => playSetlist(setlist)}
-                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm rounded-xl flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
-                  >
-                    <Play size={14} fill="currentColor" /> Lancer Live
-                  </button>
-                  <button
-                    onClick={() => handleEdit(setlist)}
-                    className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-850 transition-all cursor-pointer"
-                    title="Modifier"
-                  >
-                    <Edit2 size={14} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(setlist.id!)}
-                    className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all cursor-pointer"
-                    title="Supprimer"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                    <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                      <button
+                        onClick={() => playSetlist(setlist)}
+                        className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm rounded-xl flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+                      >
+                        <Play size={14} fill="currentColor" /> Lancer Live
+                      </button>
+                      <button
+                        onClick={() => handleEdit(setlist)}
+                        className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-850 transition-all cursor-pointer"
+                        title="Modifier"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(setlist.id!)}
+                        className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all cursor-pointer"
+                        title="Supprimer"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Ligne Inférieure : Liste des morceaux dépliée */}
+                  {isExpanded && (
+                    <div className="mt-2 pt-4 border-t border-zinc-900/60 flex flex-col gap-2 animate-fade-in">
+                      <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-black mb-1 block">Ordre des morceaux :</span>
+                      <div className="flex flex-col gap-1.5 max-h-[300px] overflow-y-auto pr-1">
+                        {setlist.songIds.map((songId: any, idx: number) => {
+                          const song = songs.find(s => String(s.id) === String(songId));
+                          if (!song) return null;
+                          return (
+                            <div key={idx} className="flex items-center justify-between bg-zinc-950/40 border border-zinc-900 px-3 py-2 rounded-xl text-xs">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="text-[10px] font-bold text-zinc-650 w-4 text-right">{idx + 1}.</span>
+                                <span className="font-bold text-zinc-200 truncate">{song.title}</span>
+                                <span className="text-zinc-500 truncate text-[11px]">{song.artist}</span>
+                              </div>
+                              <div className="flex items-center gap-3 shrink-0 text-[10px]">
+                                <span className="text-emerald-400 font-extrabold">{song.bpm} BPM</span>
+                                <span className="text-zinc-550 bg-zinc-900/80 px-1.5 py-0.5 rounded border border-zinc-850 font-bold">{song.timeSignature}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {setlist.songIds.length === 0 && (
+                          <p className="text-xs text-zinc-500 italic py-2">Aucun morceau dans cette setlist. Cliquez sur modifier pour en ajouter.</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="py-12 text-center text-zinc-500 glass-panel rounded-2xl border border-zinc-900">
               <ListMusic size={40} className="mx-auto text-zinc-700 mb-3" />
