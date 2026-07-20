@@ -272,7 +272,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
           key: result.key || editingSong.key,
           timeSignature: result.timeSignature || editingSong.timeSignature || '4/4'
         });
-        alert(`🎵 Analyse réussie !\n\nGetSongBPM a détecté :\n- BPM : ${result.bpm}\n- Tonalité : ${result.key || 'Inconnue'}`);
+        alert(`🎵 Analyse réussie !\n\nGetSongBPM a détecté :\n- BPM : ${result.bpm}\n- Tonalité : ${result.key || 'Inconnue'}\n- Signature : ${result.timeSignature || '4/4'}`);
       } else {
         alert(`🔍 Aucun résultat exact trouvé sur GetSongBPM pour "${editingSong.title}" par "${editingSong.artist}".`);
       }
