@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Play, Square, AlertCircle, RefreshCw, Sun, Lightbulb, Settings } from 'lucide-react';
-import { Song } from '../db/database';
+import { ChevronLeft, ChevronRight, Play, Square, AlertCircle, RefreshCw, Sun, Lightbulb, Settings, Trash2, Volume2, Upload } from 'lucide-react';
+import { Song, db } from '../db/database';
 import { MetronomeEngine } from '../services/MetronomeEngine';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 
@@ -10,7 +10,9 @@ interface SceneModeViewProps {
   songsList: Song[]; // Tous les morceaux chargés
   setlistTitle?: string;
   defaultFlashColor?: string;
+  defaultFlashColorWeak?: string;
   defaultCountdownBeats?: number;
+  defaultAccentFirstBeat?: boolean;
   onExit: () => void;
 }
 
@@ -26,7 +28,9 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
   songsList,
   setlistTitle = "Live Mode",
   defaultFlashColor = "emerald",
+  defaultFlashColorWeak = "none",
   defaultCountdownBeats = 4,
+  defaultAccentFirstBeat = true,
   onExit,
 }) => {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
@@ -47,8 +51,41 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
   
   // Personnalisations utilisateur
   const [flashColor, setFlashColor] = useState<string>(defaultFlashColor); // 'emerald', 'amber', 'rose', 'blue', 'white'
+  const [flashColorWeak, setFlashColorWeak] = useState<string>(defaultFlashColorWeak); // 'none', 'emerald', 'amber', 'rose', 'blue', 'white'
+  const [accentFirstBeat, setAccentFirstBeat] = useState<boolean>(defaultAccentFirstBeat);
   const [customCountdownBeats, setCustomCountdownBeats] = useState<number>(defaultCountdownBeats);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+  const [showLeftRipple, setShowLeftRipple] = useState<boolean>(false);
+  const [showRightRipple, setShowRightRipple] = useState<boolean>(false);
+
+  // Banque de sons et Assignations locales au live
+  const [customSounds, setCustomSounds] = useState<any[]>([]);
+  const [beatSounds, setBeatSounds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('beatSounds');
+    return saved ? JSON.parse(saved) : ['woodblock-high', 'woodblock-low', 'woodblock-low', 'woodblock-low'];
+  });
+
+  // Charger les sons de la base
+  const loadCustomSounds = async () => {
+    try {
+      const sounds = await db.customSounds.toArray();
+      setCustomSounds(sounds);
+    } catch (err) {
+      console.error("Erreur de chargement des sons :", err);
+    }
+  };
+
+  useEffect(() => {
+    if (showSettingsModal) {
+      loadCustomSounds();
+    }
+  }, [showSettingsModal]);
+
+  // Synchroniser les sons avec le moteur local
+  useEffect(() => {
+    engine.setBeatSounds(beatSounds);
+    localStorage.setItem('beatSounds', JSON.stringify(beatSounds));
+  }, [beatSounds, engine]);
   
   // Wake lock ref
   const wakeLockRef = useRef<any>(null);
@@ -79,6 +116,11 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
       }
     }
   }, [currentIndex, validSongIds, songsList, engine]);
+
+  // Appliquer l'accentuation du premier temps
+  useEffect(() => {
+    engine.setAccentFirstBeat(accentFirstBeat);
+  }, [accentFirstBeat, engine]);
 
   // Activer le KeepAwake (Empêcher la mise en veille)
   useEffect(() => {
@@ -209,12 +251,16 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
   const handlePrev = () => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
+      setShowLeftRipple(true);
+      setTimeout(() => setShowLeftRipple(false), 400);
     }
   };
 
   const handleNext = () => {
     if (currentIndex < validSongIds.length - 1) {
       setCurrentIndex(currentIndex + 1);
+      setShowRightRipple(true);
+      setTimeout(() => setShowRightRipple(false), 400);
     }
   };
 
@@ -222,16 +268,26 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
     if (!isFlashActive) return '';
     if (currentBeat === 1) {
       switch (flashColor) {
-        case 'amber': return 'bg-amber-950/60';
-        case 'rose': return 'bg-rose-950/60';
-        case 'blue': return 'bg-blue-950/60';
-        case 'white': return 'bg-zinc-100/25';
+        case 'amber': return 'bg-amber-500/85';
+        case 'rose': return 'bg-rose-600/90';
+        case 'blue': return 'bg-blue-600/90';
+        case 'white': return 'bg-white/95';
         case 'emerald':
         default:
-          return 'bg-emerald-950/60';
+          return 'bg-emerald-500/85';
+      }
+    } else if (flashColorWeak !== 'none') {
+      switch (flashColorWeak) {
+        case 'amber': return 'bg-amber-500/35';
+        case 'rose': return 'bg-rose-600/35';
+        case 'blue': return 'bg-blue-600/35';
+        case 'white': return 'bg-white/40';
+        case 'emerald':
+        default:
+          return 'bg-emerald-500/35';
       }
     }
-    return 'bg-zinc-900/30';
+    return 'bg-zinc-900/10';
   };
 
   const handleTogglePlay = (withCountdown: boolean = false) => {
@@ -296,38 +352,43 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
         </div>
       </header>
 
-      {/* ZONE CENTRALE AVEC FLÈCHES LATÉRALES ET CONTENU */}
+      {/* ZONE CENTRALE AVEC NAVIGATION EN SUPERPOSITION (OVERLAY) */}
       <div className="flex-1 flex flex-row items-center justify-between relative px-0 overflow-hidden">
         
-        {/* Bouton Précédent Géant à gauche */}
+        {/* Bouton Précédent Géant à gauche (en superposition invisible) */}
         <button
           onClick={handlePrev}
           disabled={currentIndex === 0}
-          className="h-full w-20 md:w-28 bg-zinc-950/20 hover:bg-zinc-900/50 border-r border-zinc-900/40 hover:border-zinc-800 disabled:opacity-0 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer shrink-0 z-20 focus:outline-none active:bg-emerald-500/10"
+          className="absolute left-0 top-0 bottom-0 w-20 md:w-28 bg-transparent disabled:pointer-events-none z-20 focus:outline-none transition-all duration-200 cursor-pointer shrink-0 active:bg-white/10"
           title="Précédent"
-        >
-          <ChevronLeft size={36} className="text-zinc-350" />
-        </button>
+        />
+
+        {/* Indicateur visuel Précédent (Style YouTube) */}
+        <div className={`absolute left-0 top-0 bottom-0 w-20 md:w-28 bg-white/5 flex items-center justify-center pointer-events-none transition-all duration-300 z-10 ${showLeftRipple ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+          <div className="bg-zinc-800/80 p-3 rounded-full flex items-center justify-center shadow-lg border border-white/10">
+            <ChevronLeft size={28} className="text-white" />
+          </div>
+        </div>
 
         {/* CONTENU PRINCIPAL - Gros caractères */}
-        <main className="flex-1 flex flex-col justify-around py-4 overflow-y-auto h-full px-2 md:px-6">
+        <main className="flex-1 flex flex-col justify-around py-4 overflow-y-auto h-full px-16 md:px-32">
           
           {/* Info Chanson (Double Colonne) */}
-          <div className="flex flex-row items-center justify-center gap-6 md:gap-8 max-w-4xl mx-auto w-full px-4">
+          <div className="flex flex-row items-center justify-center gap-4 md:gap-8 max-w-4xl mx-auto w-full px-2">
             {/* Colonne Gauche : Compteur Géant */}
-            <div className="text-right border-r border-zinc-800/80 pr-6 shrink-0 select-none">
+            <div className="text-right border-r border-zinc-800/80 pr-4 md:pr-6 shrink-0 select-none">
               <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-black block">Morceau</span>
-              <div className="text-4xl md:text-5xl font-black tracking-tighter mt-1">
+              <div className="text-3xl md:text-5xl font-black tracking-tighter mt-0.5">
                 <span className="text-emerald-400">{currentIndex + 1}</span>
                 <span className="text-zinc-700 mx-1">/</span>
-                <span className="text-zinc-500 text-3xl">{validSongIds.length}</span>
+                <span className="text-zinc-500 text-2xl md:text-3xl">{validSongIds.length}</span>
               </div>
             </div>
 
             {/* Colonne Droite : Titre et Groupe */}
             <div className="text-left min-w-0 flex-1">
-              <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white line-clamp-1">{currentSong.title}</h1>
-              <p className="text-lg md:text-2xl text-zinc-400 font-semibold mt-1.5">{currentSong.artist}</p>
+              <h1 className="text-2xl md:text-5xl font-black tracking-tight text-white break-words leading-tight">{currentSong.title}</h1>
+              <p className="text-sm md:text-xl text-zinc-400 font-semibold mt-1 break-words leading-snug">{currentSong.artist}</p>
             </div>
           </div>
 
@@ -397,26 +458,33 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
           {currentSong.comments && (
             <div className="w-full max-w-4xl mx-auto p-4 bg-zinc-950/80 border border-zinc-900 rounded-2xl flex items-start gap-3">
               <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
-              <div>
+              <div className="flex-1 min-w-0">
                 <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold block mb-1">Notes Batteristes</span>
-                <p className="text-zinc-200 text-sm md:text-base font-semibold leading-relaxed">
-                  {currentSong.comments}
-                </p>
+                <div className="max-h-32 overflow-y-auto pr-1 text-left scrollbar-thin">
+                  <p className="text-zinc-200 text-sm md:text-base font-semibold leading-relaxed break-all whitespace-pre-line">
+                    {currentSong.comments}
+                  </p>
+                </div>
               </div>
             </div>
           )}
 
         </main>
 
-        {/* Bouton Suivant Géant à droite */}
+        {/* Bouton Suivant Géant à droite (en superposition invisible) */}
         <button
           onClick={handleNext}
           disabled={currentIndex === validSongIds.length - 1}
-          className="h-full w-20 md:w-28 bg-zinc-950/20 hover:bg-zinc-900/50 border-l border-zinc-900/40 hover:border-zinc-800 disabled:opacity-0 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer shrink-0 z-20 focus:outline-none active:bg-emerald-500/10"
+          className="absolute right-0 top-0 bottom-0 w-20 md:w-28 bg-transparent disabled:pointer-events-none z-20 focus:outline-none transition-all duration-200 cursor-pointer shrink-0 active:bg-white/10"
           title="Suivant"
-        >
-          <ChevronRight size={36} className="text-zinc-350" />
-        </button>
+        />
+
+        {/* Indicateur visuel Suivant (Style YouTube) */}
+        <div className={`absolute right-0 top-0 bottom-0 w-20 md:w-28 bg-white/5 flex items-center justify-center pointer-events-none transition-all duration-300 z-10 ${showRightRipple ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+          <div className="bg-zinc-800/80 p-3 rounded-full flex items-center justify-center shadow-lg border border-white/10">
+            <ChevronRight size={28} className="text-white" />
+          </div>
+        </div>
 
       </div>
 
@@ -465,81 +533,180 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
 
       {/* MODALE DE PARAMÈTRES DE SCÈNE */}
       {showSettingsModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-950 border border-zinc-900 rounded-3xl p-6 w-full max-w-md shadow-2xl flex flex-col gap-6">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-zinc-950 border border-zinc-900 rounded-3xl p-6 w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh] relative">
             
-            {/* Titre */}
-            <div className="flex justify-between items-center pb-4 border-b border-zinc-900">
+            {/* En-tête fixe */}
+            <div className="flex justify-between items-center pb-4 border-b border-zinc-900 shrink-0">
               <h3 className="text-lg font-black text-zinc-100 flex items-center gap-2">
                 <Settings className="text-emerald-400" size={20} /> Options de Scène
               </h3>
               <button 
                 onClick={() => setShowSettingsModal(false)}
-                className="text-zinc-500 hover:text-zinc-300 text-sm font-bold cursor-pointer"
+                className="text-zinc-500 hover:text-zinc-350 text-sm font-bold cursor-pointer p-1 rounded-lg hover:bg-zinc-900 transition-colors"
               >
                 Fermer
               </button>
             </div>
 
-            {/* Couleur du Flash */}
-            <div className="flex flex-col gap-3">
-              <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Couleur du Flash</span>
-              <div className="flex justify-between gap-2.5">
-                {[
-                  { id: 'emerald', label: 'Vert', bg: 'bg-emerald-500', border: 'border-emerald-500/30' },
-                  { id: 'amber', label: 'Orange', bg: 'bg-amber-500', border: 'border-amber-500/30' },
-                  { id: 'rose', label: 'Rouge', bg: 'bg-rose-500', border: 'border-rose-500/30' },
-                  { id: 'blue', label: 'Bleu', bg: 'bg-blue-500', border: 'border-blue-500/30' },
-                  { id: 'white', label: 'Blanc', bg: 'bg-white', border: 'border-zinc-300' },
-                ].map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => setFlashColor(c.id)}
-                    className={`flex-1 py-3.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
-                      flashColor === c.id 
-                        ? 'bg-zinc-900 border-zinc-700 shadow-inner scale-102 ring-1 ring-emerald-500/20' 
-                        : 'bg-zinc-950 border-transparent hover:bg-zinc-900/50'
-                    }`}
-                  >
-                    <span className={`w-4 h-4 rounded-full ${c.bg} shadow`} />
-                    <span className={`text-[10px] font-bold ${flashColor === c.id ? 'text-zinc-200' : 'text-zinc-500'}`}>{c.label}</span>
-                  </button>
-                ))}
+            {/* Corps scrollable */}
+            <div className="flex-1 overflow-y-auto py-4 pr-1 gap-6 flex flex-col scrollbar-thin scroll-smooth">
+              {/* Couleur du Flash (1er temps) */}
+              <div className="flex flex-col gap-3">
+                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Couleur du Flash : 1er temps (Fort)</span>
+                <div className="flex justify-between gap-2.5">
+                  {[
+                    { id: 'emerald', label: 'Vert', bg: 'bg-emerald-500' },
+                    { id: 'amber', label: 'Orange', bg: 'bg-amber-500' },
+                    { id: 'rose', label: 'Rouge', bg: 'bg-rose-500' },
+                    { id: 'blue', label: 'Bleu', bg: 'bg-blue-500' },
+                    { id: 'white', label: 'Blanc', bg: 'bg-white' },
+                  ].map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => setFlashColor(c.id)}
+                      className={`flex-1 py-3.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                        flashColor === c.id 
+                          ? 'bg-zinc-900 border-zinc-700 shadow-inner scale-102 ring-1 ring-emerald-500/20' 
+                          : 'bg-zinc-950 border-transparent hover:bg-zinc-900/50'
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded-full ${c.bg} shadow`} />
+                      <span className={`text-[10px] font-bold ${flashColor === c.id ? 'text-zinc-200' : 'text-zinc-500'}`}>{c.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Durée du Décompte */}
-            <div className="flex flex-col gap-3">
-              <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Décompte (Temps)</span>
-              <div className="flex items-center justify-between bg-zinc-900/40 border border-zinc-900 rounded-2xl p-4">
+              {/* Couleur du Flash (autres temps) */}
+              <div className="flex flex-col gap-3">
+                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Couleur du Flash : autres temps (Faibles)</span>
+                <div className="flex justify-between gap-2.5">
+                  {[
+                    { id: 'none', label: 'Aucun', bg: 'bg-zinc-800' },
+                    { id: 'emerald', label: 'Vert', bg: 'bg-emerald-500/50' },
+                    { id: 'amber', label: 'Orange', bg: 'bg-amber-500/50' },
+                    { id: 'rose', label: 'Rouge', bg: 'bg-rose-500/50' },
+                    { id: 'blue', label: 'Bleu', bg: 'bg-blue-500/50' },
+                    { id: 'white', label: 'Blanc', bg: 'bg-white/50' },
+                  ].map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => setFlashColorWeak(c.id)}
+                      className={`flex-1 py-3.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                        flashColorWeak === c.id 
+                          ? 'bg-zinc-900 border-zinc-700 shadow-inner scale-102 ring-1 ring-emerald-500/20' 
+                          : 'bg-zinc-950 border-transparent hover:bg-zinc-900/50'
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded-full ${c.bg} shadow`} />
+                      <span className={`text-[10px] font-bold ${flashColorWeak === c.id ? 'text-zinc-200' : 'text-zinc-500'}`}>{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Accentuer le premier temps */}
+              <div className="flex items-center justify-between border-t border-zinc-900 pt-4">
                 <div className="flex flex-col">
-                  <span className="text-2xl font-black text-zinc-200">{customCountdownBeats} temps</span>
-                  <span className="text-[10px] text-zinc-500 font-semibold mt-0.5">Nombre de battements avant départ</span>
+                  <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Accentuer le premier temps</span>
+                  <span className="text-[10px] text-zinc-500 font-semibold mt-0.5">Son aigu différent pour le temps fort</span>
                 </div>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => setCustomCountdownBeats(prev => Math.max(1, prev - 1))}
-                    className="w-10 h-10 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white rounded-xl flex items-center justify-center font-black cursor-pointer select-none active:scale-95"
-                  >
-                    -
-                  </button>
-                  <button 
-                    onClick={() => setCustomCountdownBeats(prev => Math.min(16, prev + 1))}
-                    className="w-10 h-10 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white rounded-xl flex items-center justify-center font-black cursor-pointer select-none active:scale-95"
-                  >
-                    +
-                  </button>
+                <button
+                  type="button"
+                  onClick={() => setAccentFirstBeat(!accentFirstBeat)}
+                  className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none cursor-pointer ${
+                    accentFirstBeat ? 'bg-emerald-500' : 'bg-zinc-800'
+                  }`}
+                >
+                  <div className={`bg-black w-4 h-4 rounded-full shadow-md transform duration-200 ease-in-out ${
+                    accentFirstBeat ? 'translate-x-6' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+
+              {/* Durée du Décompte */}
+              <div className="flex flex-col gap-3">
+                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Décompte (Temps)</span>
+                <div className="flex items-center justify-between bg-zinc-900/40 border border-zinc-900 rounded-2xl p-4">
+                  <div className="flex flex-col">
+                    <span className="text-2xl font-black text-zinc-200">{customCountdownBeats} temps</span>
+                    <span className="text-[10px] text-zinc-500 font-semibold mt-0.5">Nombre de battements avant départ</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setCustomCountdownBeats(prev => Math.max(1, prev - 1))}
+                      className="w-10 h-10 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white rounded-xl flex items-center justify-center font-black cursor-pointer select-none active:scale-95"
+                    >
+                      -
+                    </button>
+                    <button 
+                      onClick={() => setCustomCountdownBeats(prev => Math.min(16, prev + 1))}
+                      className="w-10 h-10 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white rounded-xl flex items-center justify-center font-black cursor-pointer select-none active:scale-95"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Assignation des Sons par Temps (12 Temps) */}
+              <div className="flex flex-col gap-3 border-t border-zinc-900 pt-4">
+                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider flex items-center justify-between">
+                  Assignation des Sons par Temps
+                </span>
+                
+                <div className="grid grid-cols-2 gap-3 bg-zinc-900/20 p-4 rounded-2xl border border-zinc-900">
+                  {Array.from({ length: 12 }).map((_, idx) => (
+                    <div key={idx} className="flex flex-col gap-1">
+                      <span className="text-[10px] text-zinc-500 font-extrabold uppercase">Temps {idx + 1}</span>
+                      <select
+                        value={beatSounds[idx] || 'woodblock-low'}
+                        onChange={(e) => {
+                          const newSounds = [...beatSounds];
+                          newSounds[idx] = e.target.value;
+                          setBeatSounds(newSounds);
+                        }}
+                        className="bg-zinc-900 text-zinc-300 border border-zinc-850 rounded-lg p-2 text-xs font-semibold cursor-pointer outline-none hover:border-zinc-700"
+                      >
+                        <optgroup label="Bois (Woodblock)">
+                          <option value="woodblock-high">Woodblock Aigu (1)</option>
+                          <option value="woodblock-medium">Woodblock Moyen (2)</option>
+                          <option value="woodblock-low">Woodblock Grave (3)</option>
+                        </optgroup>
+                        <optgroup label="Cloche (Cowbell)">
+                          <option value="cowbell-high">Cowbell Aiguë</option>
+                          <option value="cowbell-medium">Cowbell Moyenne</option>
+                          <option value="cowbell-low">Cowbell Grave</option>
+                        </optgroup>
+                        <optgroup label="Bip (Synthé)">
+                          <option value="synth-high">Synth Aigu</option>
+                          <option value="synth-medium">Synth Moyen</option>
+                          <option value="synth-low">Synth Grave</option>
+                        </optgroup>
+                        {customSounds.length > 0 && (
+                          <optgroup label="Fichiers Personnalisés">
+                            {customSounds.map((sound) => (
+                              <option key={sound.id} value={`custom-${sound.id}`}>{sound.name}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
 
-            {/* Validation */}
-            <button
-              onClick={() => setShowSettingsModal(false)}
-              className="mt-2 w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black uppercase tracking-wider rounded-2xl cursor-pointer text-sm shadow-md shadow-emerald-950/20 active:scale-98 transition-all"
-            >
-              Enregistrer les options
-            </button>
+            {/* Pied de page fixe */}
+            <div className="pt-4 border-t border-zinc-900 mt-2 shrink-0 bg-zinc-950">
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black uppercase tracking-wider rounded-2xl cursor-pointer text-sm shadow-md shadow-emerald-950/20 active:scale-98 transition-all"
+              >
+                Enregistrer les options
+              </button>
+            </div>
 
           </div>
         </div>

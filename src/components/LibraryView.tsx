@@ -410,44 +410,44 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
               <div
                 key={song.id}
                 onClick={() => onSelectSong(song)}
-                className={`glass-panel rounded-xl p-4 flex items-center justify-between border hover:border-zinc-700/80 transition-all cursor-pointer group ${
+                className={`glass-panel rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between border hover:border-zinc-700/80 transition-all cursor-pointer group gap-3.5 md:gap-4 ${
                   currentPlayingSongId === song.id 
                     ? 'border-emerald-500/60 shadow-md glow-emerald/5' 
                     : 'border-zinc-900'
                 }`}
               >
                 {/* Couleur et Infos Principales */}
-                <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                <div className="flex items-start gap-3.5 w-full md:flex-1 min-w-0">
                   {/* Badge de couleur du morceau */}
                   <div 
-                    className="w-2.5 h-12 rounded-full shrink-0" 
+                    className="w-2.5 h-12 rounded-full shrink-0 mt-0.5" 
                     style={{ backgroundColor: song.color || '#3b82f6' }}
                   />
                   
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-zinc-100 truncate group-hover:text-emerald-400 transition-colors">
+                    <div className="flex items-start justify-between md:justify-start gap-2">
+                      <h3 className="font-bold text-zinc-100 break-words leading-snug group-hover:text-emerald-400 transition-colors flex-1">
                         {song.title}
                       </h3>
                       <button
                         onClick={(e) => toggleFavorite(e, song)}
-                        className="p-1 rounded hover:bg-zinc-800/80 transition-colors cursor-pointer shrink-0"
+                        className="p-1 rounded hover:bg-zinc-800/80 transition-colors cursor-pointer shrink-0 mt-0.5"
                         title={song.favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
                       >
                         <Star 
-                          size={12} 
+                          size={13} 
                           className={song.favorite ? "text-amber-400" : "text-zinc-650 hover:text-amber-400"} 
                           fill={song.favorite ? "currentColor" : "none"} 
                         />
                       </button>
                     </div>
-                    <p className="text-xs text-zinc-400 truncate">{song.artist}</p>
+                    <p className="text-xs text-zinc-400 break-words mt-1 leading-normal">{song.artist}</p>
                     
                     {/* Tags */}
                     {song.tags.length > 0 && (
-                      <div className="flex gap-1.5 mt-1.5 overflow-hidden">
+                      <div className="flex flex-wrap gap-1.5 mt-2">
                         {song.tags.slice(0, 3).map((t, idx) => (
-                          <span key={idx} className="text-[10px] bg-zinc-900 text-zinc-500 px-2 py-0.5 rounded">
+                          <span key={idx} className="text-[9px] bg-zinc-900 text-zinc-500 px-2 py-0.5 rounded font-medium">
                             #{t}
                           </span>
                         ))}
@@ -457,25 +457,28 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 </div>
 
                 {/* Métriques BPM et Actions */}
-                <div className="flex items-center gap-4 shrink-0 pl-3">
-                  {/* Colonne BPM fixe */}
-                  <div className="w-14 text-center">
-                    <span className="text-2xl font-black text-emerald-400 block leading-none">{song.bpm}</span>
-                    <span className="text-[9px] text-zinc-500 block font-semibold uppercase tracking-wider mt-1">BPM</span>
-                  </div>
+                <div className="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto shrink-0 border-t border-zinc-900/40 md:border-t-0 pt-3.5 md:pt-0 pl-0 md:pl-3 mt-1 md:mt-0">
+                  {/* Métriques à gauche sur mobile, à côté sur PC */}
+                  <div className="flex items-center gap-4">
+                    {/* Colonne BPM fixe */}
+                    <div className="w-14 text-center">
+                      <span className="text-2xl font-black text-emerald-400 block leading-none">{song.bpm}</span>
+                      <span className="text-[9px] text-zinc-500 block font-semibold uppercase tracking-wider mt-1">BPM</span>
+                    </div>
 
-                  {/* Colonne Boîte Noire Signature fixe */}
-                  <div className="text-center bg-zinc-900/60 border border-zinc-800 px-2 py-1.5 rounded-lg w-24 shrink-0 flex flex-col justify-center min-h-[42px]">
-                    <span className="text-xs font-bold text-zinc-300 block">{song.timeSignature}</span>
-                    {song.key ? (
-                      <span className="text-[8px] text-zinc-500 block font-bold uppercase mt-0.5 truncate" title={song.key}>{song.key}</span>
-                    ) : (
-                      <span className="text-[8px] text-zinc-650 block font-bold uppercase mt-0.5">-</span>
-                    )}
+                    {/* Colonne Boîte Noire Signature fixe */}
+                    <div className="text-center bg-zinc-900/60 border border-zinc-800 px-2 py-1.5 rounded-lg w-24 shrink-0 flex flex-col justify-center min-h-[42px]">
+                      <span className="text-xs font-bold text-zinc-300 block">{song.timeSignature}</span>
+                      {song.key ? (
+                        <span className="text-[8px] text-zinc-500 block font-bold uppercase mt-0.5 truncate" title={song.key}>{song.key}</span>
+                      ) : (
+                        <span className="text-[8px] text-zinc-650 block font-bold uppercase mt-0.5">-</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Colonne Actions fixe */}
-                  <div className="w-[105px] flex items-center justify-end gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
+                  <div className="w-[105px] flex items-center justify-end gap-1.5 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
                     {song.spotifyUrl && (
                       <a
                         href={song.spotifyUrl}

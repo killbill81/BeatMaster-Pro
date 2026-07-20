@@ -32,12 +32,18 @@ export interface Setlist {
 class DrumPilotDatabase extends Dexie {
   songs!: Table<Song, number>;
   setlists!: Table<Setlist, number>;
+  customSounds!: Table<{ id?: number; name: string; dataUrl: string }, number>;
 
   constructor() {
     super('DrumPilotDatabase');
     this.version(1).stores({
       songs: '++id, title, artist, bpm, favorite, *tags, dateAdded',
       setlists: '++id, title, dateCreated'
+    });
+    this.version(2).stores({
+      songs: '++id, title, artist, bpm, favorite, *tags, dateAdded',
+      setlists: '++id, title, dateCreated',
+      customSounds: '++id, name'
     });
   }
 }

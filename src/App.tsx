@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Music, ListMusic, Play, Sliders, Smartphone, Star, Settings, X, Cloud, CloudOff } from 'lucide-react';
+import { Music, ListMusic, Play, Sliders, Smartphone, Star, Settings, X, Cloud, CloudOff, Trash2, Volume2, Upload } from 'lucide-react';
 import { db, seedDatabaseIfEmpty, Song } from './db/database';
 import { MetronomeEngine } from './services/MetronomeEngine';
 import { LibraryView } from './components/LibraryView';
@@ -30,9 +30,35 @@ const App: React.FC = () => {
   const [liveFlashColor, setLiveFlashColor] = useState<string>(() => {
     return localStorage.getItem('liveFlashColor') || 'emerald';
   });
+  const [liveFlashColorWeak, setLiveFlashColorWeak] = useState<string>(() => {
+    return localStorage.getItem('liveFlashColorWeak') || 'none';
+  });
   const [liveCountdownBeats, setLiveCountdownBeats] = useState<number>(() => {
     const saved = localStorage.getItem('liveCountdownBeats');
     return saved ? parseInt(saved, 10) : 4;
+  });
+  const [liveAccentFirstBeat, setLiveAccentFirstBeat] = useState<boolean>(() => {
+    return localStorage.getItem('liveAccentFirstBeat') !== 'false';
+  });
+
+  // Banque de sons et Assignations
+  const [customSounds, setCustomSounds] = useState<any[]>([]);
+  const [beatSounds, setBeatSounds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('beatSounds');
+    const defaultSounds = ['woodblock-high', ...Array(11).fill('woodblock-low')];
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const extended = [...parsed];
+          while (extended.length < 12) {
+            extended.push('woodblock-low');
+          }
+          return extended;
+        }
+      } catch (e) {}
+    }
+    return defaultSounds;
   });
 
   // États Spotify globaux
@@ -62,6 +88,7 @@ const App: React.FC = () => {
       // 2. Initialiser la BD locale
       await seedDatabaseIfEmpty();
       setDbSeeded(true);
+      await loadCustomSounds();
       const songs = await db.songs.toArray();
       setAllSongs(songs);
       
@@ -129,6 +156,105 @@ const App: React.FC = () => {
     }
   };
 
+  // Décoder un DataURL Base64 en AudioBuffer
+  const decodeAudioDataUrl = async (audioCtx: AudioContext, dataUrl: string): Promise<AudioBuffer> => {
+    const base64 = dataUrl.split(',')[1];
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return await audioCtx.decodeAudioData(bytes.buffer);
+  };
+
+  // Charger les sons de la base et configurer le moteur métronome
+  const loadCustomSounds = async () => {
+    try {
+      const sounds = await db.customSounds.toArray();
+      setCustomSounds(sounds);
+
+      // Décoder les buffers et les fournir au moteur
+      const ctx = metronomeEngine.getAudioContext();
+      const buffers = new Map<number, AudioBuffer>();
+      for (const sound of sounds) {
+        try {
+          const buffer = await decodeAudioDataUrl(ctx, sound.dataUrl);
+          buffers.set(Number(sound.id), buffer);
+        } catch (e) {
+          console.error("Erreur de décodage audio :", sound.name, e);
+        }
+      }
+      metronomeEngine.setCustomSoundBuffers(buffers);
+    } catch (err) {
+      console.error("Erreur de chargement des sons personnalisés :", err);
+    }
+  };
+
+  // Importer un nouveau fichier audio
+  const handleImportSound = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Le fichier audio est trop volumineux ! Choisissez un fichier de moins de 2 Mo.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const dataUrl = event.target?.result as string;
+      try {
+        await db.customSounds.add({
+          name: file.name,
+          dataUrl
+        });
+        await loadCustomSounds();
+      } catch (err) {
+        console.error("Erreur d'enregistrement du son :", err);
+        alert("Erreur lors de l'enregistrement du son.");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Supprimer un son personnalisé
+  const handleDeleteSound = async (id: number) => {
+    if (!confirm("Voulez-vous vraiment supprimer ce son personnalisé ?")) return;
+    try {
+      await db.customSounds.delete(id);
+      await loadCustomSounds();
+      
+      // Nettoyer les assignations de battements utilisant ce son supprimé
+      const targetId = `custom-${id}`;
+      const newBeatSounds = beatSounds.map(s => s === targetId ? 'woodblock-low' : s);
+      setBeatSounds(newBeatSounds);
+      localStorage.setItem('beatSounds', JSON.stringify(newBeatSounds));
+    } catch (err) {
+      console.error("Erreur de suppression du son :", err);
+    }
+  };
+
+  // Jouer une préécoute d'un son personnalisé
+  const handlePlaySoundPreview = async (sound: any) => {
+    try {
+      const ctx = metronomeEngine.getAudioContext();
+      const buffer = await decodeAudioDataUrl(ctx, sound.dataUrl);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start();
+    } catch (err) {
+      console.error("Erreur de préécoute du son :", err);
+    }
+  };
+
+  // Synchroniser les sons de battement avec le moteur
+  useEffect(() => {
+    metronomeEngine.setBeatSounds(beatSounds);
+    localStorage.setItem('beatSounds', JSON.stringify(beatSounds));
+  }, [beatSounds]);
+
   // Lancer le mode scène pour un seul morceau
   const handleSelectSongForScene = (song: Song) => {
     if (song.id) {
@@ -150,7 +276,9 @@ const App: React.FC = () => {
   const handleSaveSettings = () => {
     SpotifyService.setClientId(spotifyClientId);
     localStorage.setItem('liveFlashColor', liveFlashColor);
+    localStorage.setItem('liveFlashColorWeak', liveFlashColorWeak);
     localStorage.setItem('liveCountdownBeats', String(liveCountdownBeats));
+    localStorage.setItem('liveAccentFirstBeat', String(liveAccentFirstBeat));
     setShowSettingsModal(false);
     alert("Configuration sauvegardée !");
   };
@@ -181,7 +309,9 @@ const App: React.FC = () => {
         songsList={liveSongsList}
         setlistTitle={liveTitle}
         defaultFlashColor={liveFlashColor}
+        defaultFlashColorWeak={liveFlashColorWeak}
         defaultCountdownBeats={liveCountdownBeats}
+        defaultAccentFirstBeat={liveAccentFirstBeat}
         onExit={() => {
           setLiveModeActive(false);
           handleRefreshSongs(); // rafraîchir en cas de changements
@@ -396,32 +526,36 @@ const App: React.FC = () => {
 
       {/* --- MODALE DES PARAMÈTRES GENERAUX & SPOTIFY --- */}
       {showSettingsModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="glass-panel w-full max-w-md rounded-2xl border border-zinc-800 p-6 flex flex-col gap-5">
-            <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
-              <h3 className="font-extrabold text-base text-zinc-100">Paramètres de l'Application</h3>
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-zinc-950 border border-zinc-900 w-full max-w-md rounded-3xl p-6 flex flex-col max-h-[90vh] md:max-h-[85vh] shadow-2xl relative">
+            {/* En-tête fixe */}
+            <div className="flex justify-between items-center border-b border-zinc-900 pb-4 shrink-0">
+              <h3 className="font-black text-lg text-zinc-100">Paramètres de l'Application</h3>
               <button
                 onClick={() => setShowSettingsModal(false)}
-                className="text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                className="text-zinc-500 hover:text-zinc-350 cursor-pointer p-1 rounded-lg hover:bg-zinc-900 transition-colors"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="flex flex-col gap-4">
-              {/* Configuration Client ID */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-zinc-400 font-semibold">Spotify Client ID</label>
+            {/* Corps du formulaire scrollable */}
+            <div className="flex-1 overflow-y-auto py-4 pr-1 gap-5 flex flex-col scrollbar-thin scroll-smooth">
+              {/* Client ID Spotify */}
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-col">
+                  <label className="text-xs text-zinc-400 font-semibold">Client ID Spotify</label>
+                  <span className="text-[10px] text-zinc-550 mt-0.5">Requis pour connecter vos morceaux aux pochettes et lectures Spotify</span>
+                </div>
                 <input
                   type="text"
-                  placeholder="Coller votre Client ID du portail Spotify..."
+                  placeholder="Collez votre Spotify Client ID"
                   value={spotifyClientId}
                   onChange={(e) => setSpotifyClientId(e.target.value)}
-                  className="px-3 py-2 bg-zinc-900 border border-zinc-850 rounded-xl focus:outline-none focus:border-emerald-500 text-zinc-300 font-mono text-xs"
+                  className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:border-zinc-700"
                 />
-                <p className="text-[10px] text-zinc-500 leading-normal">
-                  Pour obtenir un Client ID, créez une application gratuite sur le portail <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-emerald-400 underline">Spotify Developer</a>. 
-                  Vous devez y enregistrer le <strong>Redirect URI</strong> exact ci-dessous dans les paramètres de votre application Spotify :
+                <p className="text-[10px] text-zinc-550 leading-relaxed mt-1">
+                  Ajoutez l'URI suivante dans les "Redirect URIs" de votre Dashboard Spotify Developer :
                 </p>
                 <div className="bg-zinc-950 p-2 rounded border border-zinc-900 flex items-center justify-between text-[10px] font-mono text-zinc-400 break-all select-all">
                   {SpotifyService.getRedirectUri()}
@@ -462,9 +596,9 @@ const App: React.FC = () => {
                 )}
               </div>
 
-              {/* Option de Scène : Couleur du Flash */}
+              {/* Option de Scène : Couleur du Flash (1er temps) */}
               <div className="flex flex-col gap-2 border-t border-zinc-900 pt-4">
-                <label className="text-xs text-zinc-400 font-semibold">Couleur du Flash (Mode Live)</label>
+                <label className="text-xs text-zinc-400 font-semibold">Flash : Couleur du 1er temps (Fort)</label>
                 <div className="flex justify-between gap-1.5">
                   {[
                     { id: 'emerald', label: 'Vert', bg: 'bg-emerald-500' },
@@ -490,6 +624,54 @@ const App: React.FC = () => {
                 </div>
               </div>
 
+              {/* Option de Scène : Couleur du Flash (autres temps) */}
+              <div className="flex flex-col gap-2 border-t border-zinc-900 pt-4">
+                <label className="text-xs text-zinc-400 font-semibold">Flash : Couleur des autres temps (Faibles)</label>
+                <div className="flex justify-between gap-1.5">
+                  {[
+                    { id: 'none', label: 'Aucun', bg: 'bg-zinc-800' },
+                    { id: 'emerald', label: 'Vert', bg: 'bg-emerald-500/50' },
+                    { id: 'amber', label: 'Orange', bg: 'bg-amber-500/50' },
+                    { id: 'rose', label: 'Rouge', bg: 'bg-rose-500/50' },
+                    { id: 'blue', label: 'Bleu', bg: 'bg-blue-500/50' },
+                    { id: 'white', label: 'Blanc', bg: 'bg-white/50' },
+                  ].map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setLiveFlashColorWeak(c.id)}
+                      className={`flex-1 py-2 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                        liveFlashColorWeak === c.id 
+                          ? 'bg-zinc-900 border-zinc-700 shadow-inner' 
+                          : 'bg-zinc-950 border-transparent hover:bg-zinc-900/50'
+                      }`}
+                    >
+                      <span className={`w-3.5 h-3.5 rounded-full ${c.bg} shadow`} />
+                      <span className={`text-[9px] font-bold ${liveFlashColorWeak === c.id ? 'text-zinc-200' : 'text-zinc-500'}`}>{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Option de Scène : Accentuer le premier temps */}
+              <div className="flex items-center justify-between border-t border-zinc-900 pt-4">
+                <div className="flex flex-col">
+                  <label className="text-xs text-zinc-400 font-semibold">Accentuer le premier temps</label>
+                  <span className="text-[10px] text-zinc-500 mt-0.5">Son aigu différent pour le temps fort</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLiveAccentFirstBeat(!liveAccentFirstBeat)}
+                  className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none cursor-pointer ${
+                    liveAccentFirstBeat ? 'bg-emerald-500' : 'bg-zinc-800'
+                  }`}
+                >
+                  <div className={`bg-black w-4 h-4 rounded-full shadow-md transform duration-200 ease-in-out ${
+                    liveAccentFirstBeat ? 'translate-x-6' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+
               {/* Option de Scène : Décompte */}
               <div className="flex flex-col gap-2 border-t border-zinc-900 pt-4">
                 <label className="text-xs text-zinc-400 font-semibold">Temps de Décompte (Mode Live)</label>
@@ -513,9 +695,106 @@ const App: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Assignation des Sons par Temps (Global - 12 Temps) */}
+              <div className="flex flex-col gap-3 border-t border-zinc-900 pt-4">
+                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider flex flex-col gap-0.5">
+                  <span>Assignation des Sons par Temps</span>
+                  <span className="text-[10px] text-zinc-550 font-normal normal-case">Configurez jusqu'à 12 temps pour les mesures asymétriques</span>
+                </span>
+                
+                <div className="grid grid-cols-2 gap-3 bg-zinc-950 p-4 rounded-2xl border border-zinc-900">
+                  {Array.from({ length: 12 }).map((_, idx) => (
+                    <div key={idx} className="flex flex-col gap-1">
+                      <span className="text-[10px] text-zinc-500 font-extrabold uppercase">Temps {idx + 1}</span>
+                      <select
+                        value={beatSounds[idx] || 'woodblock-low'}
+                        onChange={(e) => {
+                          const newSounds = [...beatSounds];
+                          newSounds[idx] = e.target.value;
+                          setBeatSounds(newSounds);
+                        }}
+                        className="bg-zinc-900 text-zinc-350 border border-zinc-800 rounded-lg p-2 text-xs font-semibold cursor-pointer outline-none hover:border-zinc-750"
+                      >
+                        <optgroup label="Bois (Woodblock)">
+                          <option value="woodblock-high">Woodblock Aigu (1)</option>
+                          <option value="woodblock-medium">Woodblock Moyen (2)</option>
+                          <option value="woodblock-low">Woodblock Grave (3)</option>
+                        </optgroup>
+                        <optgroup label="Cloche (Cowbell)">
+                          <option value="cowbell-high">Cowbell Aiguë</option>
+                          <option value="cowbell-medium">Cowbell Moyenne</option>
+                          <option value="cowbell-low">Cowbell Grave</option>
+                        </optgroup>
+                        <optgroup label="Bip (Synthé)">
+                          <option value="synth-high">Synth Aigu</option>
+                          <option value="synth-medium">Synth Moyen</option>
+                          <option value="synth-low">Synth Grave</option>
+                        </optgroup>
+                        {customSounds.length > 0 && (
+                          <optgroup label="Fichiers Personnalisés">
+                            {customSounds.map((sound) => (
+                              <option key={sound.id} value={`custom-${sound.id}`}>{sound.name}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Banque de Sons Personnalisés */}
+              <div className="flex flex-col gap-3 border-t border-zinc-900 pt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Banque de Sons</span>
+                  <label className="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider rounded-lg cursor-pointer flex items-center gap-1 transition-all">
+                    <Upload size={10} /> Importer
+                    <input 
+                      type="file" 
+                      accept="audio/*" 
+                      onChange={handleImportSound} 
+                      className="hidden" 
+                    />
+                  </label>
+                </div>
+
+                <div className="flex flex-col gap-1.5 max-h-[140px] overflow-y-auto bg-zinc-950 p-3 rounded-2xl border border-zinc-900 pr-1">
+                  {customSounds.length === 0 ? (
+                    <span className="text-[10px] text-zinc-650 italic text-center py-2">Aucun fichier audio importé.</span>
+                  ) : (
+                    customSounds.map((sound) => (
+                      <div key={sound.id} className="flex items-center justify-between bg-zinc-900 border border-zinc-800/40 rounded-xl px-2.5 py-1.5">
+                        <span className="text-[11px] text-zinc-300 font-semibold truncate flex-1 pr-3" title={sound.name}>
+                          {sound.name}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handlePlaySoundPreview(sound)}
+                            className="p-1 text-emerald-400 hover:bg-zinc-800 rounded-lg cursor-pointer"
+                            title="Écouter"
+                          >
+                            <Volume2 size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSound(Number(sound.id))}
+                            className="p-1 text-rose-400 hover:bg-zinc-800 rounded-lg cursor-pointer"
+                            title="Supprimer"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="flex gap-3 justify-end border-t border-zinc-800 pt-4 mt-2">
+            {/* Pied de page fixe */}
+            <div className="flex gap-3 justify-end border-t border-zinc-900 pt-4 mt-2 shrink-0 bg-zinc-950">
               <button
                 onClick={() => setShowSettingsModal(false)}
                 className="px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-850 text-zinc-400 font-bold text-sm cursor-pointer"

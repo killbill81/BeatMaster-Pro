@@ -31,6 +31,10 @@ export class MetronomeEngine {
   // Callbacks pour l'UI
   private onTick: ((tickInfo: MetronomeTickInfo) => void) | null = null;
 
+  // Configuration des sons par temps de la mesure
+  private beatSounds: string[] = [];
+  private customSoundBuffers: Map<number, AudioBuffer> = new Map();
+
   // Variables internes de l'ordonnanceur (Scheduler)
   private nextTickTime: number = 0.0; // Quand le prochain clic doit avoir lieu
   private currentBeatInMeasure: number = 0; // Quel temps on joue (0 à beatsPerMeasure - 1)
@@ -71,6 +75,19 @@ export class MetronomeEngine {
 
   public setSoundType(type: MetronomeSoundType) {
     this.soundType = type;
+  }
+
+  public setBeatSounds(sounds: string[]) {
+    this.beatSounds = sounds;
+  }
+
+  public setCustomSoundBuffers(buffers: Map<number, AudioBuffer>) {
+    this.customSoundBuffers = buffers;
+  }
+
+  public getAudioContext(): AudioContext {
+    this.initAudio();
+    return this.audioCtx!;
   }
 
   public setAccentFirstBeat(enabled: boolean) {
@@ -208,7 +225,7 @@ export class MetronomeEngine {
     const isMainBeat = subdivisionIndex === 0;
 
     // Générer le son
-    this.playTone(isFirstBeat, isMainBeat, time);
+    this.playTone(beat, isFirstBeat, isMainBeat, time);
 
     // Synchroniser les retours haptiques et les callbacks d'UI
     const delay = (time - this.audioCtx.currentTime) * 1000;
@@ -232,10 +249,35 @@ export class MetronomeEngine {
     }, Math.max(0, delay));
   }
 
-  // Synthèse de sons via la Web Audio API
-  private playTone(isFirstBeat: boolean, isMainBeat: boolean, time: number) {
+  // Synthèse de sons via la Web Audio API ou lecture de buffer personnalisé
+  private playTone(beatIndex: number, isFirstBeat: boolean, isMainBeat: boolean, time: number) {
     if (!this.audioCtx) return;
 
+    // Récupérer le son assigné à ce temps
+    const soundId = this.beatSounds[beatIndex] || '';
+
+    // Gérer la lecture de sons personnalisés importés (buffers dé-codés)
+    if (soundId.startsWith('custom-')) {
+      const customId = parseInt(soundId.split('-')[1], 10);
+      const buffer = this.customSoundBuffers.get(customId);
+      if (buffer) {
+        const source = this.audioCtx.createBufferSource();
+        source.buffer = buffer;
+        
+        const gainNode = this.audioCtx.createGain();
+        // Légère accentuation sur le premier temps si configuré
+        const volume = isFirstBeat && this.accentFirstBeat ? 0.9 : 0.65;
+        gainNode.gain.setValueAtTime(volume, time);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, time + buffer.duration);
+        
+        source.connect(gainNode);
+        gainNode.connect(this.audioCtx.destination);
+        source.start(time);
+        return;
+      }
+    }
+
+    // Sinon, générer un son synthétisé
     const osc = this.audioCtx.createOscillator();
     const gainNode = this.audioCtx.createGain();
 
@@ -244,25 +286,41 @@ export class MetronomeEngine {
 
     let frequency = 800; // Fréquence par défaut
     let duration = 0.05; // Durée par défaut en secondes
+    let finalSoundType = this.soundType;
 
-    // Ajuster selon le son sélectionné
-    if (this.soundType === 'woodblock') {
-      frequency = isFirstBeat && this.accentFirstBeat ? 1200 : (isMainBeat ? 850 : 600);
+    // Déterminer le type de son et sa fréquence selon l'assignation ou le défaut
+    if (soundId) {
+      if (soundId.startsWith('woodblock-')) {
+        finalSoundType = 'woodblock';
+        frequency = soundId === 'woodblock-high' ? 1200 : (soundId === 'woodblock-medium' ? 850 : 600);
+      } else if (soundId.startsWith('cowbell-')) {
+        finalSoundType = 'cowbell';
+        frequency = soundId === 'cowbell-high' ? 900 : (soundId === 'cowbell-medium' ? 700 : 500);
+      } else if (soundId.startsWith('synth-')) {
+        finalSoundType = 'synth';
+        frequency = soundId === 'synth-high' ? 1500 : (soundId === 'synth-medium' ? 1000 : 700);
+      }
+    } else {
+      // Comportement par défaut historique (premier temps accentué)
+      if (finalSoundType === 'woodblock') {
+        frequency = isFirstBeat && this.accentFirstBeat ? 1200 : (isMainBeat ? 850 : 600);
+      } else if (finalSoundType === 'cowbell') {
+        frequency = isFirstBeat && this.accentFirstBeat ? 1000 : (isMainBeat ? 750 : 550);
+      } else {
+        frequency = isFirstBeat && this.accentFirstBeat ? 1500 : (isMainBeat ? 1000 : 750);
+      }
+    }
+
+    // Synthèse selon le type final
+    if (finalSoundType === 'woodblock') {
       duration = isFirstBeat && this.accentFirstBeat ? 0.04 : 0.03;
-      
-      // Forme d'onde sinusoïdale modifiée ou triangle pour un son plus boisé
       osc.type = 'triangle';
-      
-      // Enveloppe d'amplitude rapide
       gainNode.gain.setValueAtTime(0.6, time);
       gainNode.gain.exponentialRampToValueAtTime(0.001, time + duration);
-    } else if (this.soundType === 'cowbell') {
-      // Synthèse de cloche métallique (combinaison de deux fréquences)
-      frequency = isFirstBeat && this.accentFirstBeat ? 1000 : (isMainBeat ? 750 : 550);
+    } else if (finalSoundType === 'cowbell') {
       duration = 0.12;
       osc.type = 'sawtooth';
 
-      // Filtre passe-bande pour affiner le son de la cloche
       const filter = this.audioCtx.createBiquadFilter();
       filter.type = 'bandpass';
       filter.frequency.value = frequency;
@@ -274,18 +332,14 @@ export class MetronomeEngine {
 
       gainNode.gain.setValueAtTime(0.5, time);
       gainNode.gain.exponentialRampToValueAtTime(0.001, time + duration);
-    } else { // 'synth' (Bip électronique classique)
-      frequency = isFirstBeat && this.accentFirstBeat ? 1500 : (isMainBeat ? 1000 : 750);
+    } else { // 'synth'
       duration = 0.06;
       osc.type = 'sine';
-
       gainNode.gain.setValueAtTime(0.3, time);
       gainNode.gain.exponentialRampToValueAtTime(0.001, time + duration);
     }
 
-    // Configurer la fréquence de l'oscillateur
     osc.frequency.setValueAtTime(frequency, time);
-
     osc.start(time);
     osc.stop(time + duration + 0.01);
   }
