@@ -241,9 +241,15 @@ export class SpotifyService {
         formattedKey = keyOfSong.split(' ')[0] + ' Major';
       }
 
+      // Lire la signature rythmique si disponible (ex: "4/4" ou entier 4)
+      let timeSig = songData.song.time_sig || '4/4';
+      if (typeof timeSig === 'number' || (typeof timeSig === 'string' && !timeSig.includes('/'))) {
+        timeSig = `${timeSig}/4`;
+      }
+
       return {
         bpm,
-        timeSignature: '4/4',
+        timeSignature: timeSig,
         key: formattedKey
       };
     } catch (e) {

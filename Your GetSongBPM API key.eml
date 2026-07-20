@@ -1,0 +1,73 @@
+X-Mozilla-Status: 0001
+X-Mozilla-Status2: 00000000
+Delivered-To: janfijolly@gmail.com
+Received: by 2002:a05:6a10:10d4:b0:736:6eed:6197 with SMTP id t20csp1486319pxa;
+        Mon, 20 Jul 2026 06:14:38 -0700 (PDT)
+X-Received: by 2002:a05:600c:c84:b0:495:4811:d71c with SMTP id 5b1f17b1804b1-4954a3ed4bamr150821585e9.13.1784553277922;
+        Mon, 20 Jul 2026 06:14:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1784553277; cv=none;
+        d=google.com; s=arc-20260327;
+        b=Fq74uLDz22JDSabF+nDhPyl/F26lcYwTuUWwxBev8wmH+rzgLhCJ4ImM3rgxDqq3OQ
+         Yd4vwsiYFzLpCTgtxZdLKlFljGMfm3rEQYgTciugRqNa3iNlJ1exTeDB6BKy+qEB4gwl
+         Gfn8HaGblQYFy8iBakNU4UtRPFR/7apUxq1Urz74mkoNzB1C59De3CIRRbj0wt+bbGFD
+         SpZJxiv0txMfWfWfRwL6apIfbgsf1MMVieeYv7APOIE5hoS3CQa4CLVQWkWE15F5h50X
+         0dqZhWynsN7tuLg5+RiO0vzN/+C263t19rm9X7dhGYI/QPq2+bD8RhhrEFhtLBDSvZM+
+         qcFA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=content-transfer-encoding:mime-version:to:from:subject:date
+         :message-id:dkim-signature;
+        bh=Zd7uhXYU586WrZkU/0fPM0OrpsmeLQ9whCtyK+sQiOA=;
+        fh=vSZgBPHY4V2DByddLOC43bN+/lIax6gCbMA2qrF0chk=;
+        b=pUcYtraDH/5Gkprjy8KPs3hdBl0GKOcLcOrm9884rtOVGDRMMCSmCiXywGrAi9hHH5
+         voMBUd1PeAwPE/YWMTCV+UBnzQjNFWfYfx2KtdVfBNjd35OidDjwR2bVt0TJWmv12clt
+         /xPwYdM7ttciDc3pZK6ENKJDctGT3JPwBvIHXmx+WWszIjf51zTY6mEdpCYUd69x8TBu
+         RqBdSoaySq6YyvD18VFLfKY7pr5XegrQvYI0ASyi9fs2NorCdUwzWoBEaNqEHNsuNRzv
+         Zeu/y+RqRj/weNxok2iqjVrmUbK3S2rN+f4tcPo6a5TTYElbE7lAL6z76cb0MF6HKd/z
+         vF7w==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=permerror (no key for signature) header.i=@getsongbpm.com header.s=20191114 header.b=B6EPFM2c;
+       spf=pass (google.com: domain of sender@getsongbpm.com designates 2001:1600:19:7ff8::bc0e as permitted sender) smtp.mailfrom=sender@getsongbpm.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=getsongbpm.com
+Return-Path: <sender@getsongbpm.com>
+Received: from smtp-bc0e.mail.infomaniak.ch (smtp-bc0e.mail.infomaniak.ch. [2001:1600:19:7ff8::bc0e])
+        by mx.google.com with ESMTPS id ffacd0b85a97d-47f63ea10fesi18457653f8f.173.2026.07.20.06.14.37
+        for <janfijolly@gmail.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Mon, 20 Jul 2026 06:14:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sender@getsongbpm.com designates 2001:1600:19:7ff8::bc0e as permitted sender) client-ip=2001:1600:19:7ff8::bc0e;
+Authentication-Results: mx.google.com;
+       dkim=permerror (no key for signature) header.i=@getsongbpm.com header.s=20191114 header.b=B6EPFM2c;
+       spf=pass (google.com: domain of sender@getsongbpm.com designates 2001:1600:19:7ff8::bc0e as permitted sender) smtp.mailfrom=sender@getsongbpm.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=getsongbpm.com
+Received: from smtp-3-0001.mail.infomaniak.ch (unknown [IPv6:2001:1600:4:17::246c])
+	by smtp-3-3000.mail.infomaniak.ch (Postfix) with ESMTPS id 4h3gwF3c0mzCFY
+	for <janfijolly@gmail.com>; Mon, 20 Jul 2026 15:14:37 +0200 (CEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=getsongbpm.com;
+	s=20191114; t=1784553277;
+	bh=Zd7uhXYU586WrZkU/0fPM0OrpsmeLQ9whCtyK+sQiOA=;
+	h=Date:Subject:From:To:From;
+	b=B6EPFM2clnlDYaW/0u8jNpPl+AylJw8/VdfoAnQsPNV/m43rGHyxMvsHzxVTKjabW
+	 yVoxqXhoy9Dn0FMRg5tUGqXGEtqLslWLcxnwrKnO8gXaREJvvXTlMiLOEjuiJpBXuo
+	 ygOa6WyPWCsvIfrr1TnQ+/enN/Vg2MoWG8TyyRdw=
+Received: from unknown by smtp-3-0001.mail.infomaniak.ch (Postfix) with ESMTPA id 4h3gwF03xTzwcZ
+	for <janfijolly@gmail.com>; Mon, 20 Jul 2026 15:14:36 +0200 (CEST)
+Message-ID: <9200b6364cc1cb1c0e08bf999ea89b6c@getsongbpm.com>
+Date: Mon, 20 Jul 2026 15:14:36 +0200
+Subject: Your GetSongBPM API key
+From: "sender@getsongbpm.com" <sender@getsongbpm.com>
+To: "janfijolly@gmail.com" <janfijolly@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+X-Infomaniak-Routing: alpha
+
+Hey there!<br>Here is your API Key to start creating awesome apps:<br><b>11=
+5ca235c50f2de1524b9f138213978e</b><br><p>Oh, Wait... it needs to be activat=
+ed first! To do so visit this page:<br>
+<a href=3D"https://api.getsongbpm=
+.com/?activate=3D115ca235c50f2de1524b9f138213978e&owner=3Djanfijolly@gmail.=
+com">https://api.getsongbpm.com/?activate=3D115ca235c50f2de1524b9f138213978=
+e&owner=3Djanfijolly@gmail.com</a>.<br><br>Remember that if you remove the =
+link back to us, we will automatically suspend your account. <p>Thank You!<=
+br>Team GetSongBPM
