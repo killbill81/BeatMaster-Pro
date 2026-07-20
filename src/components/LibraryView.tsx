@@ -297,21 +297,44 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     setIsSpotifyLoading(true);
     setSpotifyError('');
     try {
-      // 1. Récupérer les Audio Features (BPM, Signature, Key)
-      const features = await SpotifyService.getAudioFeatures(track.id);
+      let bpm = 120;
+      let timeSignature = '4/4';
+      let key = '';
+      let sourceInfo = 'Spotify';
+      let errorDetail = '';
+
+      // 1. Tenter de récupérer les données de Spotify
+      try {
+        const features = await SpotifyService.getAudioFeatures(track.id);
+        bpm = features.bpm;
+        timeSignature = features.timeSignature;
+        key = features.key;
+      } catch (spotifyErr: any) {
+        errorDetail = spotifyErr.message || 'Erreur inconnue Spotify';
+        console.warn("Échec Spotify Audio Features :", errorDetail);
+        
+        // 2. Si échec de Spotify, tenter le fallback de secours GetSongBPM
+        const fallback = await SpotifyService.getAudioFeaturesFallback(track.title, track.artist);
+        if (fallback) {
+          bpm = fallback.bpm;
+          timeSignature = fallback.timeSignature;
+          key = fallback.key;
+          sourceInfo = 'GetSongBPM (Secours)';
+        } else {
+          sourceInfo = 'Aucun (Échec Spotify + pas de clé GetSongBPM de secours)';
+        }
+      }
       
-      // 2. Mettre à jour le formulaire d'édition
-      const isRestricted = features.bpm === 0;
-      
+      // 3. Mettre à jour le formulaire d'édition
       if (editingSong) {
         setEditingSong({
           ...editingSong,
           title: track.title,
           artist: track.artist,
           album: track.album,
-          bpm: isRestricted ? (editingSong.bpm || 120) : features.bpm,
-          timeSignature: isRestricted ? (editingSong.timeSignature || '4/4') : features.timeSignature,
-          key: isRestricted ? (editingSong.key || '') : features.key,
+          bpm: (sourceInfo !== 'Aucun') ? bpm : (editingSong.bpm || 120),
+          timeSignature: (sourceInfo !== 'Aucun') ? timeSignature : (editingSong.timeSignature || '4/4'),
+          key: (sourceInfo !== 'Aucun') ? key : (editingSong.key || ''),
           duration: SpotifyService.formatDuration(track.durationMs),
           spotifyUrl: track.spotifyUrl,
           comments: editingSong.comments || `Pochette : ${track.albumArtUrl || ''}`
@@ -319,11 +342,15 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
       }
       setShowSpotifySearch(false);
       
-      if (isRestricted) {
-        alert("🎵 Morceau importé avec succès !\n\nNote : Spotify restreint désormais l'accès aux caractéristiques de tempo (BPM) et de tonalité pour les nouvelles applications. Veuillez saisir le BPM manuellement.");
+      if (sourceInfo === 'Spotify') {
+        alert(`🎵 Morceau importé avec succès !\n\nBPM et tonalité récupérés directement depuis Spotify.`);
+      } else if (sourceInfo.includes('Secours')) {
+        alert(`🎵 Morceau importé avec succès !\n\nNote : Spotify a bloqué la requête (${errorDetail}). Les données de BPM (${bpm}) et de tonalité (${key}) ont été récupérées via GetSongBPM en secours.`);
+      } else {
+        alert(`🎵 Morceau importé !\n\nNote : Spotify a restreint l'accès (${errorDetail}) et aucune clé GetSongBPM n'est configurée pour le secours. Veuillez saisir le BPM manuellement.`);
       }
     } catch (err: any) {
-      setSpotifyError("Erreur de récupération des détails audio : " + err.message);
+      setSpotifyError("Erreur lors de l'importation : " + err.message);
     } finally {
       setIsSpotifyLoading(false);
     }

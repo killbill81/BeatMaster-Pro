@@ -182,13 +182,7 @@ export class SpotifyService {
     });
 
     if (!response.ok) {
-      // Les comptes développeurs Spotify récents n'ont plus accès à cet endpoint (Erreur 403).
-      // On renvoie des valeurs par défaut pour permettre l'importation du reste des infos de base.
-      return {
-        bpm: 0,
-        timeSignature: '4/4',
-        key: '',
-      };
+      throw new Error(`Erreur ${response.status} (Restrictions API Spotify)`);
     }
 
     const data = await response.json();
@@ -204,6 +198,58 @@ export class SpotifyService {
       timeSignature: timeSig,
       key: formattedKey,
     };
+  }
+
+  // Secours automatique via GetSongBPM API
+  public static async getAudioFeaturesFallback(title: string, artist: string): Promise<SpotifyAudioFeatures | null> {
+    const apiKey = localStorage.getItem('drumpilot_getsongbpm_api_key');
+    if (!apiKey) return null;
+
+    try {
+      // Étape 1 : Recherche de la chanson sur GetSongBPM
+      const cleanArtist = artist.split(',')[0].trim();
+      const searchQuery = `title:${encodeURIComponent(title)} artist:${encodeURIComponent(cleanArtist)}`;
+      
+      const searchResponse = await fetch(`https://api.getsongbpm.com/search/?api_key=${apiKey}&type=song&lookup=${searchQuery}`);
+      if (!searchResponse.ok) {
+        throw new Error(`Erreur HTTP GetSongBPM ${searchResponse.status}`);
+      }
+      
+      const searchData = await searchResponse.json();
+      if (!searchData.search || searchData.search.length === 0) {
+        return null;
+      }
+      
+      const songId = searchData.search[0].id;
+      
+      // Étape 2 : Récupérer les détails de la chanson (BPM et Clé)
+      const songResponse = await fetch(`https://api.getsongbpm.com/song/?api_key=${apiKey}&id=${songId}`);
+      if (!songResponse.ok) {
+        return null;
+      }
+      
+      const songData = await songResponse.json();
+      if (!songData.song) return null;
+      
+      const bpm = parseInt(songData.song.tempo, 10) || 0;
+      const keyOfSong = songData.song.key_of || ''; // ex: "A min" ou "C Maj"
+      
+      let formattedKey = keyOfSong;
+      if (keyOfSong.toLowerCase().includes('min')) {
+        formattedKey = keyOfSong.split(' ')[0] + ' Minor';
+      } else if (keyOfSong.toLowerCase().includes('maj')) {
+        formattedKey = keyOfSong.split(' ')[0] + ' Major';
+      }
+
+      return {
+        bpm,
+        timeSignature: '4/4',
+        key: formattedKey
+      };
+    } catch (e) {
+      console.error("Échec du secours GetSongBPM :", e);
+      return null;
+    }
   }
 
   // Utilitaires de conversion

@@ -61,10 +61,13 @@ const App: React.FC = () => {
     return defaultSounds;
   });
 
-  // États Spotify globaux
+  // États Spotify et Fallbacks globaux
   const [spotifyConnected, setSpotifyConnected] = useState<boolean>(SpotifyService.isAuthenticated());
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [spotifyClientId, setSpotifyClientId] = useState<string>(SpotifyService.getClientId());
+  const [getSongBpmApiKey, setGetSongBpmApiKey] = useState<string>(() => {
+    return localStorage.getItem('drumpilot_getsongbpm_api_key') || '';
+  });
 
   // États Firebase globaux
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
@@ -275,6 +278,7 @@ const App: React.FC = () => {
 
   const handleSaveSettings = () => {
     SpotifyService.setClientId(spotifyClientId);
+    localStorage.setItem('drumpilot_getsongbpm_api_key', getSongBpmApiKey.trim());
     localStorage.setItem('liveFlashColor', liveFlashColor);
     localStorage.setItem('liveFlashColorWeak', liveFlashColorWeak);
     localStorage.setItem('liveCountdownBeats', String(liveCountdownBeats));
@@ -554,6 +558,20 @@ const App: React.FC = () => {
                   onChange={(e) => setSpotifyClientId(e.target.value)}
                   className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:border-zinc-700"
                 />
+
+                {/* Clé API GetSongBPM (Optionnelle) */}
+                <div className="flex flex-col mt-2">
+                  <label className="text-xs text-zinc-400 font-semibold">Clé API GetSongBPM (Mode Secours)</label>
+                  <span className="text-[10px] text-zinc-550 mt-0.5">Utilisée pour récupérer le BPM et la tonalité si l'API Spotify est restreinte</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Entrez votre clé API GetSongBPM"
+                  value={getSongBpmApiKey}
+                  onChange={(e) => setGetSongBpmApiKey(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:border-zinc-700"
+                />
+
                 <p className="text-[10px] text-zinc-550 leading-relaxed mt-1">
                   Ajoutez l'URI suivante dans les "Redirect URIs" de votre Dashboard Spotify Developer :
                 </p>
