@@ -250,6 +250,39 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     }
   };
 
+  const handleRescanGetSongBpm = async () => {
+    if (!editingSong || !editingSong.title || !editingSong.artist) {
+      alert("Veuillez renseigner le Titre et l'Artiste du morceau pour lancer la recherche.");
+      return;
+    }
+
+    const apiKey = localStorage.getItem('drumpilot_getsongbpm_api_key');
+    if (!apiKey) {
+      alert("Veuillez configurer votre clé d'API GetSongBPM dans les paramètres généraux de l'application pour utiliser le scanner.");
+      return;
+    }
+
+    setIsSpotifyLoading(true);
+    try {
+      const result = await SpotifyService.getAudioFeaturesFallback(editingSong.title, editingSong.artist);
+      if (result) {
+        setEditingSong({
+          ...editingSong,
+          bpm: result.bpm || editingSong.bpm,
+          key: result.key || editingSong.key,
+          timeSignature: result.timeSignature || editingSong.timeSignature || '4/4'
+        });
+        alert(`🎵 Analyse réussie !\n\nGetSongBPM a détecté :\n- BPM : ${result.bpm}\n- Tonalité : ${result.key || 'Inconnue'}`);
+      } else {
+        alert(`🔍 Aucun résultat exact trouvé sur GetSongBPM pour "${editingSong.title}" par "${editingSong.artist}".`);
+      }
+    } catch (err: any) {
+      alert("Erreur de numérisation GetSongBPM : " + err.message);
+    } finally {
+      setIsSpotifyLoading(false);
+    }
+  };
+
   // --- LOGIQUE SPOTIFY ---
 
   const handleSaveSpotifyClientId = () => {
@@ -538,7 +571,17 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
               </h3>
               <p className="text-[10px] text-zinc-500">Saisissez les détails ou importez-les depuis Spotify.</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              {/* BOUTON DE RESCAN GETSONGBPM */}
+              <button
+                type="button"
+                onClick={handleRescanGetSongBpm}
+                disabled={isSpotifyLoading}
+                className="px-3.5 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                title="Rechercher et mettre à jour le BPM et la tonalité depuis GetSongBPM"
+              >
+                🔍 Rescanner GetSongBPM
+              </button>
               {/* BOUTON D'IMPORTATION SPOTIFY */}
               <button
                 type="button"
