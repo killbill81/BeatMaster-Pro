@@ -206,11 +206,11 @@ export class SpotifyService {
     if (!apiKey) return null;
 
     try {
-      // Étape 1 : Recherche de la chanson sur GetSongBPM
+      // Étape 1 : Recherche de la chanson sur GetSongBPM (URL officielle api.getsong.co)
       const cleanArtist = artist.split(',')[0].trim();
-      const searchQuery = `title:${encodeURIComponent(title)} artist:${encodeURIComponent(cleanArtist)}`;
+      const lookupValue = `song:${title.trim()} artist:${cleanArtist}`;
       
-      const searchResponse = await fetch(`https://api.getsongbpm.com/search/?api_key=${apiKey}&type=song&lookup=${searchQuery}`);
+      const searchResponse = await fetch(`https://api.getsong.co/search/?api_key=${apiKey}&type=both&lookup=${encodeURIComponent(lookupValue)}`);
       if (!searchResponse.ok) {
         throw new Error(`Erreur HTTP GetSongBPM ${searchResponse.status}`);
       }
@@ -223,7 +223,7 @@ export class SpotifyService {
       const songId = searchData.search[0].id;
       
       // Étape 2 : Récupérer les détails de la chanson (BPM et Clé)
-      const songResponse = await fetch(`https://api.getsongbpm.com/song/?api_key=${apiKey}&id=${songId}`);
+      const songResponse = await fetch(`https://api.getsong.co/song/?api_key=${apiKey}&id=${songId}`);
       if (!songResponse.ok) {
         return null;
       }
