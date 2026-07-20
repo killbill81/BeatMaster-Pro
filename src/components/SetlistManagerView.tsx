@@ -203,11 +203,12 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
 
   // Lancer une setlist en mode scène
   const playSetlist = (setlist: Setlist) => {
-    if (setlist.songIds.length === 0) {
-      alert("Cette setlist ne contient aucun morceau !");
+    const validIds = setlist.songIds.filter(id => songs.some(s => String(s.id) === String(id)));
+    if (validIds.length === 0) {
+      alert("Cette setlist ne contient aucun morceau valide !");
       return;
     }
-    onLoadSetlistInScene(setlist.songIds, setlist.title, songs);
+    onLoadSetlistInScene(validIds, setlist.title, songs);
   };
 
   return (
@@ -233,6 +234,11 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
           {setlists.length > 0 ? (
             setlists.map((setlist) => {
               const isExpanded = expandedSetlistId === setlist.id;
+              // Filtrer uniquement les morceaux qui existent encore dans la bibliothèque globale
+              const validSongs = setlist.songIds
+                .map((songId: any) => songs.find(s => String(s.id) === String(songId)))
+                .filter((song): song is Song => !!song);
+
               return (
                 <div 
                   key={setlist.id}
@@ -257,7 +263,7 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
                       )}
                       <div className="flex items-center gap-2 mt-2">
                         <span className="text-xs bg-zinc-900 border border-zinc-800 text-emerald-400 font-bold px-2 py-0.5 rounded-md">
-                          {setlist.songIds.length} morceau{setlist.songIds.length > 1 ? 'x' : ''}
+                          {validSongs.length} morceau{validSongs.length > 1 ? 'x' : ''}
                         </span>
                         <span className="text-[10px] text-zinc-500">
                           Créée le {new Date(setlist.dateCreated).toLocaleDateString()}
@@ -294,15 +300,13 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
                     <div className="mt-2 pt-4 border-t border-zinc-900/60 flex flex-col gap-2 animate-fade-in">
                       <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-black mb-1 block">Ordre des morceaux :</span>
                       <div className="flex flex-col gap-1.5 max-h-[300px] overflow-y-auto pr-1">
-                        {setlist.songIds.map((songId: any, idx: number) => {
-                          const song = songs.find(s => String(s.id) === String(songId));
-                          if (!song) return null;
+                        {validSongs.map((song: Song, idx: number) => {
                           return (
-                            <div key={idx} className="flex items-center justify-between bg-zinc-950/40 border border-zinc-900 px-3 py-2 rounded-xl text-xs">
+                            <div key={song.id || idx} className="flex items-center justify-between bg-zinc-950/40 border border-zinc-900 px-3 py-2 rounded-xl text-xs">
                               <div className="flex items-center gap-2.5 min-w-0">
                                 <span className="text-[10px] font-bold text-zinc-650 w-4 text-right">{idx + 1}.</span>
                                 <span className="font-bold text-zinc-200 truncate">{song.title}</span>
-                                <span className="text-zinc-500 truncate text-[11px]">{song.artist}</span>
+                                <span className="text-zinc-550 truncate text-[11px]">{song.artist}</span>
                               </div>
                               <div className="flex items-center gap-3 shrink-0 text-[10px]">
                                 <span className="text-emerald-400 font-extrabold">{song.bpm} BPM</span>
@@ -311,8 +315,8 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
                             </div>
                           );
                         })}
-                        {setlist.songIds.length === 0 && (
-                          <p className="text-xs text-zinc-500 italic py-2">Aucun morceau dans cette setlist. Cliquez sur modifier pour en ajouter.</p>
+                        {validSongs.length === 0 && (
+                          <p className="text-xs text-zinc-500 italic py-2">Aucun morceau valide dans cette setlist. Cliquez sur modifier pour en ajouter.</p>
                         )}
                       </div>
                     </div>
