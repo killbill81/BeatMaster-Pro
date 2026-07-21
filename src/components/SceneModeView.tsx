@@ -49,11 +49,44 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
   const [visualFlashEnabled, setVisualFlashEnabled] = useState<boolean>(true);
   const [vibrationEnabled, setVibrationEnabled] = useState<boolean>(false);
   
-  // Personnalisations utilisateur
-  const [flashColor, setFlashColor] = useState<string>(defaultFlashColor); // 'emerald', 'amber', 'rose', 'blue', 'white'
-  const [flashColorWeak, setFlashColorWeak] = useState<string>(defaultFlashColorWeak); // 'none', 'emerald', 'amber', 'rose', 'blue', 'white'
-  const [accentFirstBeat, setAccentFirstBeat] = useState<boolean>(defaultAccentFirstBeat);
-  const [customCountdownBeats, setCustomCountdownBeats] = useState<number>(defaultCountdownBeats);
+  // Personnalisations utilisateur avec persistance dans localStorage
+  const [flashColor, setFlashColorState] = useState<string>(() => {
+    return localStorage.getItem('liveFlashColor') || defaultFlashColor;
+  });
+  const [flashColorWeak, setFlashColorWeakState] = useState<string>(() => {
+    return localStorage.getItem('liveFlashColorWeak') || defaultFlashColorWeak;
+  });
+  const [accentFirstBeat, setAccentFirstBeatState] = useState<boolean>(() => {
+    const saved = localStorage.getItem('liveAccentFirstBeat');
+    return saved !== null ? saved !== 'false' : defaultAccentFirstBeat;
+  });
+  const [customCountdownBeats, setCustomCountdownBeatsState] = useState<number>(() => {
+    const saved = localStorage.getItem('liveCountdownBeats');
+    return saved ? parseInt(saved, 10) : defaultCountdownBeats;
+  });
+
+  const setFlashColor = (color: string) => {
+    setFlashColorState(color);
+    localStorage.setItem('liveFlashColor', color);
+  };
+
+  const setFlashColorWeak = (color: string) => {
+    setFlashColorWeakState(color);
+    localStorage.setItem('liveFlashColorWeak', color);
+  };
+
+  const setAccentFirstBeat = (val: boolean) => {
+    setAccentFirstBeatState(val);
+    localStorage.setItem('liveAccentFirstBeat', String(val));
+  };
+
+  const setCustomCountdownBeats = (val: number | ((prev: number) => number)) => {
+    setCustomCountdownBeatsState(prev => {
+      const nextVal = typeof val === 'function' ? val(prev) : val;
+      localStorage.setItem('liveCountdownBeats', String(nextVal));
+      return nextVal;
+    });
+  };
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [showLeftRipple, setShowLeftRipple] = useState<boolean>(false);
   const [showRightRipple, setShowRightRipple] = useState<boolean>(false);
