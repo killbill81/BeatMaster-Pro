@@ -388,7 +388,14 @@ export const SceneModeView: React.FC<SceneModeViewProps> = ({
             {/* Colonne Droite : Titre et Groupe */}
             <div className="text-left min-w-0 flex-1">
               <h1 className="text-2xl md:text-5xl font-black tracking-tight text-white break-words leading-tight">{currentSong.title}</h1>
-              <p className="text-sm md:text-xl text-zinc-400 font-semibold mt-1 break-words leading-snug">{currentSong.artist}</p>
+              <div className="flex items-center gap-2.5 mt-1 flex-wrap">
+                <p className="text-sm md:text-xl text-zinc-400 font-semibold break-words leading-snug">{currentSong.artist}</p>
+                {currentSong.duration && (
+                  <span className="text-xs md:text-sm font-mono font-bold text-zinc-350 bg-zinc-900/90 border border-zinc-800 px-2.5 py-0.5 rounded-lg shrink-0">
+                    ⏱️ {currentSong.duration}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 

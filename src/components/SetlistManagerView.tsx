@@ -239,6 +239,34 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
                 .map((songId: any) => songs.find(s => String(s.id) === String(songId)))
                 .filter((song): song is Song => !!song);
 
+              // Calculer la durée totale en secondes
+              const totalSeconds = validSongs.reduce((acc, song) => {
+                if (!song.duration) return acc;
+                const parts = song.duration.split(':');
+                if (parts.length === 2) {
+                  const m = parseInt(parts[0], 10) || 0;
+                  const s = parseInt(parts[1], 10) || 0;
+                  return acc + (m * 60 + s);
+                }
+                return acc;
+              }, 0);
+
+              const formatTotalTime = (seconds: number): string => {
+                if (seconds === 0) return '';
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = seconds % 60;
+                if (h > 0) {
+                  return `${h} h ${m} min`;
+                }
+                if (m > 0) {
+                  return `${m} min ${s} s`;
+                }
+                return `${seconds} s`;
+              };
+
+              const formattedTotalDuration = formatTotalTime(totalSeconds);
+
               return (
                 <div 
                   key={setlist.id}
@@ -265,6 +293,11 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
                         <span className="text-xs bg-zinc-900 border border-zinc-800 text-emerald-400 font-bold px-2 py-0.5 rounded-md">
                           {validSongs.length} morceau{validSongs.length > 1 ? 'x' : ''}
                         </span>
+                        {formattedTotalDuration && (
+                          <span className="text-xs bg-zinc-900 border border-zinc-800 text-zinc-400 font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                            ⏱️ {formattedTotalDuration}
+                          </span>
+                        )}
                         <span className="text-[10px] text-zinc-500">
                           Créée le {new Date(setlist.dateCreated).toLocaleDateString()}
                         </span>
@@ -303,10 +336,15 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
                         {validSongs.map((song: Song, idx: number) => {
                           return (
                             <div key={song.id || idx} className="flex items-center justify-between bg-zinc-950/40 border border-zinc-900 px-3 py-2 rounded-xl text-xs">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <span className="text-[10px] font-bold text-zinc-650 w-4 text-right">{idx + 1}.</span>
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-4">
+                                <span className="text-[10px] font-bold text-zinc-650 w-4 text-right shrink-0">{idx + 1}.</span>
                                 <span className="font-bold text-zinc-200 truncate">{song.title}</span>
                                 <span className="text-zinc-550 truncate text-[11px]">{song.artist}</span>
+                                {song.duration && (
+                                  <span className="text-zinc-400 font-medium font-mono text-[10px] bg-zinc-900/80 px-1.5 py-0.5 rounded border border-zinc-850/60 shrink-0 ml-1">
+                                    {song.duration}
+                                  </span>
+                                )}
                               </div>
                               <div className="flex items-center gap-3 shrink-0 text-[10px]">
                                 <span className="text-emerald-400 font-extrabold">{song.bpm} BPM</span>
@@ -378,9 +416,35 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
               </div>
             </div>
 
-            {/* Colonne centrale : Morceaux choisis (Ordre) */}
+            {/* Colonne de gauche : Sélectionner dans la Bibliothèque */}
             <div className="md:col-span-1 flex flex-col gap-3">
-              <label className="text-xs text-zinc-400 font-semibold">Ordre des morceaux ({editingSetlist.songIds?.length || 0})</label>
+              <label className="text-xs text-zinc-400 font-semibold">Ajouter depuis la Bibliothèque</label>
+              
+              <div className="flex flex-col gap-2 overflow-y-auto max-h-[300px] border border-zinc-850 p-2.5 rounded-xl bg-zinc-950/20">
+                {songs
+                  .filter((song) => !editingSetlist.songIds?.includes(song.id!))
+                  .map((song) => (
+                    <button
+                      key={song.id}
+                      type="button"
+                      onClick={() => addSongToSetlist(song.id!)}
+                      className="p-2 rounded-lg bg-zinc-900 border border-zinc-900 hover:border-emerald-500/40 text-left text-xs transition-all flex justify-between items-center cursor-pointer"
+                    >
+                      <div className="min-w-0 flex-1 mr-2">
+                        <span className="font-semibold text-zinc-300 block truncate">{song.title}</span>
+                        <span className="text-[10px] text-zinc-500 truncate block">{song.artist}</span>
+                      </div>
+                      <span className="text-emerald-400 font-bold bg-zinc-950 px-2 py-0.5 rounded border border-zinc-850">
+                        {song.bpm}
+                      </span>
+                    </button>
+                  ))}
+              </div>
+            </div>
+
+            {/* Colonne de droite : Morceaux choisis (Ordre) */}
+            <div className="md:col-span-1 flex flex-col gap-3">
+              <label className="text-xs text-zinc-400 font-semibold">Ordre des morceaux de la setlist ({editingSetlist.songIds?.length || 0})</label>
               
               <div className="flex flex-col gap-2 overflow-y-auto max-h-[300px] border border-zinc-800 bg-zinc-950/40 p-2.5 rounded-xl min-h-[200px]">
                 {editingSetlist.songIds && editingSetlist.songIds.length > 0 ? (
@@ -431,32 +495,8 @@ export const SetlistManagerView: React.FC<SetlistManagerViewProps> = ({
                     );
                   })
                 ) : (
-                  <p className="text-zinc-600 text-xs text-center my-auto">Aucun morceau sélectionné. Cliquez sur un morceau à droite pour l'ajouter.</p>
+                  <p className="text-zinc-600 text-xs text-center my-auto">Aucun morceau sélectionné. Cliquez sur un morceau à gauche pour l'ajouter.</p>
                 )}
-              </div>
-            </div>
-
-            {/* Colonne de droite : Sélectionner dans la Bibliothèque */}
-            <div className="md:col-span-1 flex flex-col gap-3">
-              <label className="text-xs text-zinc-400 font-semibold">Ajouter depuis la Bibliothèque</label>
-              
-              <div className="flex flex-col gap-2 overflow-y-auto max-h-[300px] border border-zinc-850 p-2.5 rounded-xl bg-zinc-950/20">
-                {songs.map((song) => (
-                  <button
-                    key={song.id}
-                    type="button"
-                    onClick={() => addSongToSetlist(song.id!)}
-                    className="p-2 rounded-lg bg-zinc-900 border border-zinc-900 hover:border-emerald-500/40 text-left text-xs transition-all flex justify-between items-center cursor-pointer"
-                  >
-                    <div className="min-w-0 flex-1 mr-2">
-                      <span className="font-semibold text-zinc-300 block truncate">{song.title}</span>
-                      <span className="text-[10px] text-zinc-500 truncate block">{song.artist}</span>
-                    </div>
-                    <span className="text-emerald-400 font-bold bg-zinc-950 px-2 py-0.5 rounded border border-zinc-850">
-                      {song.bpm}
-                    </span>
-                  </button>
-                ))}
               </div>
             </div>
 

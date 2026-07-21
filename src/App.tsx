@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Music, ListMusic, Play, Sliders, Smartphone, Star, Settings, X, Cloud, CloudOff, Trash2, Volume2, Upload } from 'lucide-react';
 import { db, seedDatabaseIfEmpty, Song } from './db/database';
 import { MetronomeEngine } from './services/MetronomeEngine';
@@ -73,12 +73,14 @@ const App: React.FC = () => {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const spotifyCallbackProcessedRef = useRef<boolean>(false);
 
   // Initialisation, seed de démonstration, écoute de session Firebase et callback Spotify
   useEffect(() => {
     const initApp = async () => {
-      // 1. Gérer le callback Spotify OAuth PKCE s'il y a un code dans l'URL
-      if (window.location.search.includes('code=')) {
+      // 1. Gérer le callback Spotify OAuth PKCE s'il y a un code dans l'URL (exécuté une seule fois)
+      if (window.location.search.includes('code=') && !spotifyCallbackProcessedRef.current) {
+        spotifyCallbackProcessedRef.current = true;
         const success = await SpotifyService.handleCallback();
         if (success) {
           setSpotifyConnected(true);
@@ -830,10 +832,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* FOOTER */}
-      <footer className="py-4 px-6 text-center border-t border-zinc-900/60 bg-zinc-950/30 text-[10px] text-zinc-650 font-medium">
-        DrumPilot est conçu pour fonctionner hors connexion • Données enregistrées localement dans votre navigateur.
-      </footer>
+
 
     </div>
   );

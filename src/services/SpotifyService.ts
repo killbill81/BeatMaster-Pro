@@ -93,6 +93,10 @@ export class SpotifyService {
     const redirectUri = this.getRedirectUri();
 
     if (!codeVerifier) {
+      if (this.isAuthenticated()) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return true;
+      }
       console.error("Code verifier manquant dans le localStorage");
       return false;
     }
